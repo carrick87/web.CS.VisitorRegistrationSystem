@@ -9,8 +9,21 @@ export interface SessionData {
   isLoggedIn: boolean
 }
 
+function getSessionPassword(): string {
+  const secret = process.env.SESSION_SECRET
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret || secret.length < 32) {
+      throw new Error(
+        'SESSION_SECRET environment variable is required in production and must be at least 32 characters long'
+      )
+    }
+    return secret
+  }
+  return secret || 'harrisons-visitor-registration-dev-secret-32!'
+}
+
 export const sessionOptions: SessionOptions = {
-  password: process.env.SESSION_SECRET || 'harrisons-visitor-registration-secret-key-32-chars!',
+  password: getSessionPassword(),
   cookieName: 'harrisons-visitor-session',
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',

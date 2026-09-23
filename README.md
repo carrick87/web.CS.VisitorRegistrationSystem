@@ -15,15 +15,19 @@ A Progressive Web App (PWA) for managing visitor check-in and check-out at Harri
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Database**: SQLite with Prisma ORM
+- **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: Iron Session
-- **PWA**: next-pwa
+- **PWA**: next-pwa (disabled on Vercel)
 
-## Quick Start
+## Quick Start (Local Development)
 
 ```bash
 # Install dependencies
 npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your PostgreSQL DATABASE_URL
 
 # Setup database and seed demo data
 npm run setup
@@ -33,6 +37,40 @@ npm run dev
 ```
 
 The app will be available at **http://localhost:3847**
+
+## Vercel Deployment
+
+### Prerequisites
+
+1. A PostgreSQL database (e.g., [Neon](https://neon.tech), [Supabase](https://supabase.com), or [Railway](https://railway.app))
+
+### Environment Variables
+
+Configure these in Vercel Dashboard → Settings → Environment Variables:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (e.g., `postgresql://user:pass@host:5432/db?sslmode=require`) |
+| `SESSION_SECRET` | Yes | Random string, minimum 32 characters for session encryption |
+| `SETUP_SECRET` | Optional | Secret for the admin seed endpoint |
+
+### Deploy Steps
+
+1. Connect your GitHub repository to Vercel
+2. Add the required environment variables
+3. Deploy - Vercel will automatically run `prisma generate` via the `postinstall` script
+4. After deployment, seed the demo user:
+
+```bash
+curl -X POST https://your-app.vercel.app/api/admin/seed \
+  -H "x-setup-secret: YOUR_SETUP_SECRET"
+```
+
+### Notes
+
+- PWA is automatically disabled on Vercel (`VERCEL=1`) to avoid build issues with next-pwa
+- The database schema is pushed automatically via Prisma migrations; ensure `DATABASE_URL` is set before first deploy
+- For production, generate a secure `SESSION_SECRET` (e.g., `openssl rand -base64 32`)
 
 ## Demo Credentials
 
