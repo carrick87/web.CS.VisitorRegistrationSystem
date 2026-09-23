@@ -7,31 +7,82 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String
+model Site {
+  id         String      @id @default(uuid())
+  name       String
+  code       String?     @unique
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  warehouses Warehouse[]
+  users      User[]      @relation("SiteUsers")
+}
+
+model Warehouse {
+  id        String    @id @default(uuid())
+  siteId    String
+  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  code      String    @unique
   name      String
-  role      String   @default("STAFF")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  visitors  Visitor[]
+  users     UserWarehouse[]
+
+  @@index([siteId])
+  @@index([code])
+}
+
+model User {
+  id         String          @id @default(uuid())
+  username   String          @unique
+  password   String
+  name       String
+  role       String          @default("STOREKEEPER")
+  siteId     String?
+  site       Site?           @relation("SiteUsers", fields: [siteId], references: [id], onDelete: SetNull)
+  warehouses UserWarehouse[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([siteId])
+  @@index([role])
+}
+
+model UserWarehouse {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, warehouseId])
+  @@index([userId])
+  @@index([warehouseId])
 }
 
 model Visitor {
-  id            String    @id @default(uuid())
-  name          String
-  visitorType   String
-  company       String?
-  department    String?
-  purpose       String
-  carPlate      String?
-  pin           String
-  browserToken  String
-  status        String    @default("ACTIVE")
-  timeIn        DateTime  @default(now())
-  timeOut       DateTime?
-  checkoutBy    String?
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  warehouseId  String
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  name         String
+  visitorType  String
+  company      String?
+  department   String?
+  purpose      String
+  carPlate     String?
+  pin          String
+  browserToken String
+  status       String    @default("ACTIVE")
+  timeIn       DateTime  @default(now())
+  timeOut      DateTime?
+  checkoutBy   String?
+  remarks      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([browserToken])
 }

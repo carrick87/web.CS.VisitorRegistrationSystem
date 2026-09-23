@@ -1,11 +1,22 @@
 import { getIronSession, SessionOptions } from 'iron-session'
 import { cookies } from 'next/headers'
 
+export const ROLES = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  SITE_ADMIN: 'SITE_ADMIN',
+  STOREKEEPER: 'STOREKEEPER',
+} as const
+
+export type UserRole = typeof ROLES[keyof typeof ROLES]
+
 export interface SessionData {
   userId?: string
   username?: string
   name?: string
-  role?: string
+  role?: UserRole
+  siteId?: string | null
+  siteName?: string | null
+  warehouseIds?: string[]
   isLoggedIn: boolean
 }
 

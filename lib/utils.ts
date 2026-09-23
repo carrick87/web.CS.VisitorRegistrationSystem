@@ -48,3 +48,18 @@ export const PURPOSES = {
 
 export const VISITOR_STATUS = ['ACTIVE', 'COMPLETED', 'FORCE_COMPLETED'] as const
 export type VisitorStatus = typeof VISITOR_STATUS[number]
+
+export const USER_ROLES = ['SUPER_ADMIN', 'SITE_ADMIN', 'STOREKEEPER'] as const
+export type UserRole = typeof USER_ROLES[number]
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  SITE_ADMIN: 'Site Admin',
+  STOREKEEPER: 'Storekeeper',
+}
+
+export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  SUPER_ADMIN: 'Full system access - manage sites, warehouses, and all users',
+  SITE_ADMIN: 'Site-level access - manage warehouses and storekeepers within assigned site',
+  STOREKEEPER: 'Warehouse-level access - manage visitors at assigned warehouses',
+}

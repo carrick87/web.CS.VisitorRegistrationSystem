@@ -22,26 +22,29 @@ export default function Home() {
             Visitor Registration
           </h1>
           <p className="text-gray-600 text-lg max-w-md mx-auto">
-            Welcome to Harrisons Warehouse. Please check in to register your visit.
+            Welcome to Harrisons Warehouse. Please use the check-in link or QR code at your warehouse gate.
           </p>
         </div>
 
         <div className="max-w-md mx-auto space-y-4">
-          <Link href="/checkin" className="block">
-            <div className="card hover:shadow-xl transition-shadow cursor-pointer border-2 border-transparent hover:border-amber-500">
-              <div className="flex items-center space-x-4">
-                <div className="bg-amber-100 p-4 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800">Check In</h2>
-                  <p className="text-gray-500">Register your arrival</p>
-                </div>
+          <div className="card border-2 border-amber-500 bg-amber-50">
+            <div className="flex items-center space-x-4">
+              <div className="bg-amber-100 p-4 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">Visitor Check-In</h2>
+                <p className="text-gray-600 text-sm">Scan the QR code at your warehouse gate to check in</p>
               </div>
             </div>
-          </Link>
+            <div className="mt-4 pt-4 border-t border-amber-200">
+              <p className="text-xs text-amber-700">
+                Check-in links follow the format: <code className="bg-amber-100 px-1 rounded">/checkin/[CODE]</code>
+              </p>
+            </div>
+          </div>
 
           {browserToken && (
             <Link href="/checkout" className="block">
@@ -71,7 +74,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-gray-800">Staff Login</h2>
-                  <p className="text-gray-500">Access dashboard</p>
+                  <p className="text-gray-500">Access dashboard and admin console</p>
                 </div>
               </div>
             </div>

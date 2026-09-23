@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface Warehouse {
+  id: string
+  code: string
+  name: string
+}
+
 interface Visitor {
   id: string
   name: string
@@ -17,18 +23,29 @@ interface Visitor {
   timeOut?: string
   checkoutBy?: string
   remarks?: string
+  warehouse: {
+    id: string
+    code: string
+    name: string
+    site: { id: string; name: string }
+  }
 }
 
 export default function HistoryPage() {
   const router = useRouter()
   const [visitors, setVisitors] = useState<Visitor[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'ALL' | 'COMPLETED' | 'FORCE_COMPLETED'>('ALL')
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('')
 
   useEffect(() => {
     checkAuth()
+  }, [])
+
+  useEffect(() => {
     fetchVisitors()
-  }, [filter])
+  }, [filter, selectedWarehouse])
 
   const checkAuth = async () => {
     try {
@@ -36,7 +53,9 @@ export default function HistoryPage() {
       const data = await response.json()
       if (!data.isLoggedIn) {
         router.push('/login')
+        return
       }
+      setWarehouses(data.warehouses || [])
     } catch {
       router.push('/login')
     }
@@ -46,7 +65,11 @@ export default function HistoryPage() {
     setLoading(true)
     try {
       const statusParam = filter === 'ALL' ? 'COMPLETED,FORCE_COMPLETED' : filter
-      const response = await fetch(`/api/visitors?status=${statusParam}`)
+      let url = `/api/visitors?status=${statusParam}`
+      if (selectedWarehouse) {
+        url += `&warehouseId=${selectedWarehouse}`
+      }
+      const response = await fetch(url)
       const data = await response.json()
       setVisitors(data.visitors || [])
     } catch (error) {
@@ -82,26 +105,47 @@ export default function HistoryPage() {
       </nav>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Visitor History</h1>
-            <p className="text-gray-500">Past visitor records</p>
+        <div className="mb-6 flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Visitor History</h1>
+              <p className="text-gray-500">Past visitor records</p>
+            </div>
           </div>
 
-          <div className="mt-4 md:mt-0 flex space-x-2">
-            {(['ALL', 'COMPLETED', 'FORCE_COMPLETED'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === status
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Status Filter */}
+            <div className="flex space-x-2">
+              {(['ALL', 'COMPLETED', 'FORCE_COMPLETED'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    filter === status
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {status.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+
+            {/* Warehouse Filter */}
+            {warehouses.length > 1 && (
+              <select
+                value={selectedWarehouse}
+                onChange={(e) => setSelectedWarehouse(e.target.value)}
+                className="select-field w-full md:w-64"
               >
-                {status.replace('_', ' ')}
-              </button>
-            ))}
+                <option value="">All Warehouses</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.code} - {w.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
@@ -122,6 +166,7 @@ export default function HistoryPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warehouse</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visitor</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company/Dept</th>
@@ -134,6 +179,11 @@ export default function HistoryPage() {
                 <tbody className="divide-y divide-gray-200">
                   {visitors.map((visitor) => (
                     <tr key={visitor.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className="font-mono text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded">
+                          {visitor.warehouse.code}
+                        </span>
+                      </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="font-medium text-gray-900">{visitor.name}</div>
                         {visitor.carPlate && (

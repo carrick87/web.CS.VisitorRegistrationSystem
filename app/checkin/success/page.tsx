@@ -16,6 +16,11 @@ interface VisitorData {
   pin: string
   timeIn: string
   qrCode: string
+  warehouse: {
+    code: string
+    name: string
+    siteName: string
+  }
 }
 
 function SuccessContent() {
@@ -60,8 +65,8 @@ function SuccessContent() {
     return (
       <div className="card text-center">
         <p className="text-red-600 mb-4">{error || 'Visitor not found'}</p>
-        <Link href="/checkin" className="btn-primary inline-block">
-          Try Again
+        <Link href="/" className="btn-primary inline-block">
+          Back to Home
         </Link>
       </div>
     )
@@ -76,7 +81,21 @@ function SuccessContent() {
           </svg>
         </div>
         <h1 className="text-2xl font-bold text-gray-800">Check-In Successful!</h1>
-        <p className="text-gray-500 mt-2">Welcome to Harrisons Warehouse</p>
+        <p className="text-gray-500 mt-2">Welcome to {visitor.warehouse.siteName}</p>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-sm text-amber-700">Warehouse</p>
+            <p className="font-semibold text-amber-900">{visitor.warehouse.name}</p>
+          </div>
+          <div className="text-right">
+            <span className="font-mono bg-amber-100 px-3 py-1 rounded text-amber-800">
+              {visitor.warehouse.code}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="bg-gray-50 rounded-lg p-4 mb-6">

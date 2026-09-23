@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { requireStaff, canAccessWarehouse } from '@/lib/rbac'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSession()
-    if (!session.isLoggedIn) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireStaff()
+    if (!authResult.authorized || !authResult.session) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
     const { checkoutBy, remarks } = await request.json()
@@ -26,6 +26,11 @@ export async function POST(
       return NextResponse.json({ error: 'Visitor not found' }, { status: 404 })
     }
 
+    const canAccess = await canAccessWarehouse(authResult.session, visitor.warehouseId)
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     if (visitor.status !== 'ACTIVE') {
       return NextResponse.json({ error: 'Visitor is not currently active' }, { status: 400 })
     }
@@ -37,6 +42,11 @@ export async function POST(
         timeOut: new Date(),
         checkoutBy,
         remarks: remarks || null,
+      },
+      include: {
+        warehouse: {
+          select: { id: true, code: true, name: true },
+        },
       },
     })
 
