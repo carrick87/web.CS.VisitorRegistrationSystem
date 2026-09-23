@@ -1,13 +1,18 @@
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-})
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
 }
 
-module.exports = withPWA(nextConfig)
+const isPWADisabled = process.env.NODE_ENV === 'development' || process.env.VERCEL === '1'
+
+if (isPWADisabled) {
+  module.exports = nextConfig
+} else {
+  const withPWA = require('next-pwa')({
+    dest: 'public',
+    register: true,
+    skipWaiting: true,
+    disable: false,
+  })
+  module.exports = withPWA(nextConfig)
+}
