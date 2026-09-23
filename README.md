@@ -245,7 +245,8 @@ curl -X POST https://your-app.vercel.app/api/admin/seed \
 - Many-to-many relation with Warehouse for STOREKEEPER assignments
 
 ### Visitor
-- `id`, `warehouseId` (FK, required), visitor details, `status`, timestamps
+- `id`, `warehouseId` (FK, optional for legacy visitors), visitor details, `status`, timestamps
+- **Note**: The seed script backfills legacy visitors (with null/empty `warehouseId`) to the default warehouse (KCH01)
 
 ## License
 

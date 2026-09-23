@@ -126,12 +126,12 @@ export async function POST(request: NextRequest) {
       ],
     })
 
-    // Migrate existing visitors without warehouseId to default warehouse
+    // Backfill legacy visitors without warehouseId to default warehouse (KCH01)
     const migrationResult = await prisma.visitor.updateMany({
       where: {
         OR: [
+          { warehouseId: null },
           { warehouseId: '' },
-          { warehouseId: { equals: undefined as unknown as string } },
         ],
       },
       data: { warehouseId: kuchingMain.id },
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
             { username: storekeeper3.username, warehouses: ['KK01', 'SDK01'] },
           ],
         },
-        migratedVisitors: migrationResult.count,
+        backfilledLegacyVisitors: migrationResult.count,
       },
     })
   } catch (error) {

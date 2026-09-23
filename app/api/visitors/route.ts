@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
 
     interface WhereClause {
       status?: { in: string[] }
-      warehouseId?: string | { in: string[] }
+      warehouseId?: string | { in: string[] } | null
+      OR?: Array<{ warehouseId: string | { in: string[] } | null }>
     }
 
     const where: WhereClause = {}
@@ -40,7 +41,11 @@ export async function GET(request: NextRequest) {
       }
       where.warehouseId = warehouse.id
     } else {
-      where.warehouseId = { in: accessibleWarehouseIds }
+      // Include visitors from accessible warehouses plus legacy visitors with null warehouseId
+      where.OR = [
+        { warehouseId: { in: accessibleWarehouseIds } },
+        { warehouseId: null },
+      ]
     }
 
     const visitors = await prisma.visitor.findMany({
