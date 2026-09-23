@@ -228,29 +228,24 @@ async function main() {
   })
   console.log(`    → Assigned to: ${kkMain.code}, ${sandakanWarehouse.code}`)
 
-  // Migrate existing visitors to default warehouse (Kuching Main)
+  // Migrate legacy visitors without warehouseId to default warehouse (Kuching Main)
   console.log('')
-  console.log('📦 Migrating existing visitors...')
+  console.log('📦 Backfilling legacy visitors...')
   
-  const visitorsWithoutWarehouse = await prisma.visitor.findMany({
-    where: { warehouseId: '' },
-  })
-  
-  // Also check for visitors that might have NULL warehouseId by running a raw count
   const migrationResult = await prisma.visitor.updateMany({
     where: {
       OR: [
+        { warehouseId: null },
         { warehouseId: '' },
-        { warehouseId: { equals: undefined as unknown as string } },
       ],
     },
     data: { warehouseId: kuchingMain.id },
   })
   
   if (migrationResult.count > 0) {
-    console.log(`  ✅ Migrated ${migrationResult.count} visitor(s) to ${kuchingMain.code}`)
+    console.log(`  ✅ Backfilled ${migrationResult.count} legacy visitor(s) to ${kuchingMain.code}`)
   } else {
-    console.log('  ℹ️  No visitors needed migration')
+    console.log('  ℹ️  No legacy visitors needed backfill')
   }
 
   // Create sample demo visitors

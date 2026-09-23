@@ -26,9 +26,12 @@ export async function POST(
       return NextResponse.json({ error: 'Visitor not found' }, { status: 404 })
     }
 
-    const canAccess = await canAccessWarehouse(authResult.session, visitor.warehouseId)
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Legacy visitors without warehouseId are accessible by any authenticated staff
+    if (visitor.warehouseId) {
+      const canAccess = await canAccessWarehouse(authResult.session, visitor.warehouseId)
+      if (!canAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     if (visitor.status !== 'ACTIVE') {

@@ -42,11 +42,11 @@ export async function GET(
       timeIn: visitor.timeIn,
       status: visitor.status,
       qrCode,
-      warehouse: {
+      warehouse: visitor.warehouse ? {
         code: visitor.warehouse.code,
         name: visitor.warehouse.name,
         siteName: visitor.warehouse.site.name,
-      },
+      } : null,
     })
   } catch (error) {
     console.error('Get visitor error:', error)
