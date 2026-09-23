@@ -9,6 +9,15 @@ export async function GET(
   try {
     const visitor = await prisma.visitor.findUnique({
       where: { id: params.id },
+      include: {
+        warehouse: {
+          include: {
+            site: {
+              select: { name: true },
+            },
+          },
+        },
+      },
     })
 
     if (!visitor) {
@@ -33,6 +42,11 @@ export async function GET(
       timeIn: visitor.timeIn,
       status: visitor.status,
       qrCode,
+      warehouse: {
+        code: visitor.warehouse.code,
+        name: visitor.warehouse.name,
+        siteName: visitor.warehouse.site.name,
+      },
     })
   } catch (error) {
     console.error('Get visitor error:', error)

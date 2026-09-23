@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface Warehouse {
+  id: string
+  code: string
+  name: string
+  site?: { id: string; name: string }
+}
+
 interface Visitor {
   id: string
   name: string
@@ -17,11 +24,21 @@ interface Visitor {
   timeOut?: string
   checkoutBy?: string
   remarks?: string
+  warehouse: {
+    id: string
+    code: string
+    name: string
+    site: { id: string; name: string }
+  }
 }
 
 interface UserSession {
   name: string
   username: string
+  role: string
+  siteId?: string
+  siteName?: string
+  warehouses?: Warehouse[]
 }
 
 export default function DashboardPage() {
@@ -29,14 +46,21 @@ export default function DashboardPage() {
   const [activeVisitors, setActiveVisitors] = useState<Visitor[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<UserSession | null>(null)
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('')
   const [forceCompleteModal, setForceCompleteModal] = useState<{ visitor: Visitor | null; open: boolean }>({ visitor: null, open: false })
   const [forceCompleteForm, setForceCompleteForm] = useState({ checkoutBy: '', remarks: '' })
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     checkAuth()
-    fetchActiveVisitors()
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchActiveVisitors()
+    }
+  }, [user, selectedWarehouse])
 
   const checkAuth = async () => {
     try {
@@ -44,9 +68,10 @@ export default function DashboardPage() {
       const data = await response.json()
       if (!data.isLoggedIn) {
         router.push('/login')
-      } else {
-        setUser(data)
+        return
       }
+      setUser(data)
+      setWarehouses(data.warehouses || [])
     } catch {
       router.push('/login')
     }
@@ -54,7 +79,10 @@ export default function DashboardPage() {
 
   const fetchActiveVisitors = async () => {
     try {
-      const response = await fetch('/api/visitors?status=ACTIVE')
+      const url = selectedWarehouse 
+        ? `/api/visitors?status=ACTIVE&warehouseId=${selectedWarehouse}`
+        : '/api/visitors?status=ACTIVE'
+      const response = await fetch(url)
       const data = await response.json()
       setActiveVisitors(data.visitors || [])
     } catch (error) {
@@ -96,6 +124,14 @@ export default function DashboardPage() {
     }
   }
 
+  const getAdminLink = () => {
+    if (user?.role === 'SUPER_ADMIN') return '/admin'
+    if (user?.role === 'SITE_ADMIN') return '/admin/site'
+    return null
+  }
+
+  const adminLink = getAdminLink()
+
   return (
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm">
@@ -104,8 +140,22 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-4">
               <span className="font-bold text-gray-800">Harrisons Dashboard</span>
               <span className="text-sm text-gray-500">Welcome, {user?.name}</span>
+              {user?.role && (
+                <span className={`text-xs px-2 py-1 rounded ${
+                  user.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700' :
+                  user.role === 'SITE_ADMIN' ? 'bg-blue-100 text-blue-700' :
+                  'bg-green-100 text-green-700'
+                }`}>
+                  {user.role.replace('_', ' ')}
+                </span>
+              )}
             </div>
             <div className="flex items-center space-x-4">
+              {adminLink && (
+                <Link href={adminLink} className="text-gray-600 hover:text-gray-800">
+                  Admin
+                </Link>
+              )}
               <Link href="/dashboard/history" className="text-gray-600 hover:text-gray-800">
                 History
               </Link>
@@ -118,9 +168,29 @@ export default function DashboardPage() {
       </nav>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Active Visitors</h1>
-          <p className="text-gray-500">Currently checked-in visitors</p>
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Active Visitors</h1>
+            <p className="text-gray-500">Currently checked-in visitors</p>
+          </div>
+          
+          {/* Warehouse Filter */}
+          {warehouses.length > 1 && (
+            <div className="mt-4 md:mt-0">
+              <select
+                value={selectedWarehouse}
+                onChange={(e) => setSelectedWarehouse(e.target.value)}
+                className="select-field w-full md:w-64"
+              >
+                <option value="">All Warehouses</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.code} - {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -150,6 +220,14 @@ export default function DashboardPage() {
                   <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
                     ACTIVE
                   </span>
+                </div>
+
+                {/* Warehouse Badge */}
+                <div className="mb-3 flex items-center">
+                  <span className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded font-mono">
+                    {visitor.warehouse.code}
+                  </span>
+                  <span className="ml-2 text-xs text-gray-500">{visitor.warehouse.name}</span>
                 </div>
 
                 <div className="space-y-2 text-sm text-gray-600 mb-4">
@@ -182,8 +260,11 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Force Complete Check-Out</h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 mb-2">
               Force check-out for <strong>{forceCompleteModal.visitor.name}</strong>?
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Warehouse: <span className="font-mono bg-gray-100 px-1 rounded">{forceCompleteModal.visitor.warehouse.code}</span>
             </p>
 
             <div className="space-y-4">

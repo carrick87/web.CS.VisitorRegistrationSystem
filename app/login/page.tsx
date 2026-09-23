@@ -31,7 +31,14 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed')
       }
 
-      router.push('/dashboard')
+      const role = data.user.role
+      if (role === 'SUPER_ADMIN') {
+        router.push('/admin')
+      } else if (role === 'SITE_ADMIN') {
+        router.push('/admin/site')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -57,7 +64,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-gray-800">Staff Login</h1>
-            <p className="text-gray-500 mt-2">Access the visitor management dashboard</p>
+            <p className="text-gray-500 mt-2">Access the visitor management system</p>
           </div>
 
           {error && (
@@ -113,9 +120,21 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 text-center">
-              Demo credentials: <span className="font-mono bg-gray-100 px-2 py-1 rounded">storekeeper</span> / <span className="font-mono bg-gray-100 px-2 py-1 rounded">demo1234</span>
-            </p>
+            <p className="text-sm text-gray-600 text-center mb-3 font-medium">Demo Accounts</p>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between bg-gray-50 px-3 py-2 rounded">
+                <span className="text-gray-600">Super Admin:</span>
+                <span className="font-mono">superadmin / admin123</span>
+              </div>
+              <div className="flex justify-between bg-gray-50 px-3 py-2 rounded">
+                <span className="text-gray-600">Site Admin:</span>
+                <span className="font-mono">kuching_admin / admin123</span>
+              </div>
+              <div className="flex justify-between bg-gray-50 px-3 py-2 rounded">
+                <span className="text-gray-600">Storekeeper:</span>
+                <span className="font-mono">storekeeper / demo1234</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

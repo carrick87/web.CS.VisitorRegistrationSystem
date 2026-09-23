@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, UserRole } from '@/lib/session'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,17 +12,30 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { username },
+      include: {
+        site: true,
+        warehouses: {
+          include: {
+            warehouse: true,
+          },
+        },
+      },
     })
 
     if (!user || user.password !== password) {
       return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 })
     }
 
+    const warehouseIds = user.warehouses.map(uw => uw.warehouseId)
+
     const session = await getSession()
     session.userId = user.id
     session.username = user.username
     session.name = user.name
-    session.role = user.role
+    session.role = user.role as UserRole
+    session.siteId = user.siteId
+    session.siteName = user.site?.name || null
+    session.warehouseIds = warehouseIds
     session.isLoggedIn = true
     await session.save()
 
@@ -33,6 +46,14 @@ export async function POST(request: NextRequest) {
         username: user.username,
         name: user.name,
         role: user.role,
+        siteId: user.siteId,
+        siteName: user.site?.name || null,
+        warehouseIds,
+        warehouses: user.warehouses.map(uw => ({
+          id: uw.warehouse.id,
+          code: uw.warehouse.code,
+          name: uw.warehouse.name,
+        })),
       },
     })
   } catch (error) {
