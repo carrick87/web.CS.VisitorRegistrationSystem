@@ -46,7 +46,10 @@ export const PURPOSES = {
   STAFF: ['GENERAL'],
 } as const
 
-export const VISITOR_STATUS = ['ACTIVE', 'COMPLETED', 'FORCE_COMPLETED'] as const
+export const VEHICLE_TYPES = ['NONE', 'CAR', 'MOTORCYCLE', 'TRUCK', 'VAN'] as const
+export type VehicleType = typeof VEHICLE_TYPES[number]
+
+export const VISITOR_STATUS = ['ACTIVE', 'COMPLETED', 'FORCE_COMPLETED', 'STAFF_CHECKOUT'] as const
 export type VisitorStatus = typeof VISITOR_STATUS[number]
 
 export const USER_ROLES = ['SUPER_ADMIN', 'SITE_ADMIN', 'STOREKEEPER'] as const

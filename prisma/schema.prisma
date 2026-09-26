@@ -18,15 +18,16 @@ model Site {
 }
 
 model Warehouse {
-  id        String    @id @default(uuid())
+  id        String          @id @default(uuid())
   siteId    String
-  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  code      String    @unique
+  site      Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  code      String          @unique
   name      String
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
   visitors  Visitor[]
+  tags      Tag[]
   users     UserWarehouse[]
 
   @@index([siteId])
@@ -62,27 +63,46 @@ model UserWarehouse {
   @@index([warehouseId])
 }
 
-model Visitor {
-  id           String     @id @default(uuid())
-  warehouseId  String?
-  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-  name         String
-  visitorType  String
-  company      String?
-  department   String?
-  purpose      String
-  carPlate     String?
-  pin          String
-  browserToken String
-  status       String    @default("ACTIVE")
-  timeIn       DateTime  @default(now())
-  timeOut      DateTime?
-  checkoutBy   String?
-  remarks      String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+model Tag {
+  id            String    @id @default(uuid())
+  warehouseId   String
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  code          String    @unique
+  displayNumber String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  visitors      Visitor[]
 
   @@index([warehouseId])
+  @@index([code])
+}
+
+model Visitor {
+  id            String     @id @default(uuid())
+  warehouseId   String?
+  warehouse     Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  tagId         String?
+  tag           Tag?       @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  isGroupLeader Boolean    @default(false)
+  name          String
+  visitorType   String
+  company       String?
+  department    String?
+  purpose       String
+  carPlate      String?
+  vehicleType   String?
+  pin           String
+  browserToken  String
+  status        String     @default("ACTIVE")
+  timeIn        DateTime   @default(now())
+  timeOut       DateTime?
+  checkoutBy    String?
+  remarks       String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([warehouseId])
+  @@index([tagId])
   @@index([status])
   @@index([browserToken])
 }

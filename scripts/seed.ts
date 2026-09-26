@@ -228,6 +228,30 @@ async function main() {
   })
   console.log(`    → Assigned to: ${kkMain.code}, ${sandakanWarehouse.code}`)
 
+  // Create tags for each warehouse (10 per warehouse)
+  console.log('')
+  console.log('🏷️  Creating visitor tags...')
+
+  const allWarehouses = [kuchingMain, kuchingCold, sibuWarehouse, kkMain, sandakanWarehouse]
+  
+  for (const warehouse of allWarehouses) {
+    for (let i = 1; i <= 10; i++) {
+      const displayNumber = i.toString().padStart(2, '0')
+      const tagCode = `${warehouse.code}-T${displayNumber}`
+      
+      await prisma.tag.upsert({
+        where: { code: tagCode },
+        update: { displayNumber },
+        create: {
+          warehouseId: warehouse.id,
+          code: tagCode,
+          displayNumber,
+        },
+      })
+    }
+    console.log(`  ✅ Created 10 tags for ${warehouse.code}`)
+  }
+
   // Migrate legacy visitors without warehouseId to default warehouse (Kuching Main)
   console.log('')
   console.log('📦 Backfilling legacy visitors...')
@@ -248,35 +272,47 @@ async function main() {
     console.log('  ℹ️  No legacy visitors needed backfill')
   }
 
-  // Create sample demo visitors
+  // Create sample demo visitors using tags
   console.log('')
   console.log('🧑‍💼 Creating demo visitors...')
+
+  // Get tag IDs for demo visitors
+  const tag1 = await prisma.tag.findUnique({ where: { code: 'KCH01-T01' } })
+  const tag2 = await prisma.tag.findUnique({ where: { code: 'KCH02-T01' } })
+  const tag3 = await prisma.tag.findUnique({ where: { code: 'KK01-T01' } })
 
   const demoVisitors = [
     {
       warehouseId: kuchingMain.id,
+      tagId: tag1?.id,
       name: 'John Smith',
       visitorType: 'EXTERNAL',
       company: 'ABC Trading Sdn Bhd',
       purpose: 'GENERAL',
       carPlate: 'QKA 1234',
+      vehicleType: 'CAR',
       pin: '1234',
       browserToken: 'demo-token-1',
       status: 'ACTIVE',
+      isGroupLeader: true,
     },
     {
       warehouseId: kuchingMain.id,
+      tagId: tag1?.id,
       name: 'Tan Mei Ling',
       visitorType: 'EXTERNAL',
-      company: 'Express Logistics',
-      purpose: 'TRUCK',
-      carPlate: 'BDG 5678',
+      company: 'ABC Trading Sdn Bhd',
+      purpose: 'GENERAL',
+      carPlate: 'QKA 1234',
+      vehicleType: 'CAR',
       pin: '5678',
       browserToken: 'demo-token-2',
       status: 'ACTIVE',
+      isGroupLeader: false,
     },
     {
       warehouseId: kuchingCold.id,
+      tagId: tag2?.id,
       name: 'Rajesh Kumar',
       visitorType: 'STAFF',
       department: 'Quality Control',
@@ -284,17 +320,21 @@ async function main() {
       pin: '9012',
       browserToken: 'demo-token-3',
       status: 'ACTIVE',
+      isGroupLeader: true,
     },
     {
       warehouseId: kkMain.id,
+      tagId: tag3?.id,
       name: 'Siti Nurhaliza',
       visitorType: 'EXTERNAL',
       company: 'Fresh Produce Sdn Bhd',
       purpose: 'TRUCK',
       carPlate: 'SAA 9999',
+      vehicleType: 'TRUCK',
       pin: '3456',
       browserToken: 'demo-token-4',
       status: 'ACTIVE',
+      isGroupLeader: true,
     },
   ]
 
@@ -310,7 +350,7 @@ async function main() {
       data: visitor,
     })
   }
-  console.log(`  ✅ Created ${demoVisitors.length} demo visitor(s)`)
+  console.log(`  ✅ Created ${demoVisitors.length} demo visitor(s) on tags`)
 
   console.log('')
   console.log('🎉 Database seeded successfully!')
@@ -333,14 +373,23 @@ async function main() {
   console.log('  kk_keeper / demo1234    → KK01, SDK01 (Kota Kinabalu)')
   console.log('')
   console.log('═══════════════════════════════════════════════════════════════')
-  console.log('                     WAREHOUSE CHECK-IN URLs')
+  console.log('                        VISITOR TAGS')
   console.log('═══════════════════════════════════════════════════════════════')
   console.log('')
-  console.log('  /checkin/KCH01  → Kuching Main Warehouse')
-  console.log('  /checkin/KCH02  → Kuching Cold Storage')
-  console.log('  /checkin/SBU01  → Sibu Distribution Center')
-  console.log('  /checkin/KK01   → Kota Kinabalu Main Warehouse')
-  console.log('  /checkin/SDK01  → Sandakan Warehouse')
+  console.log('Each warehouse has 10 visitor tags (T01-T10). Scan a tag to check in.')
+  console.log('')
+  console.log('Example tag URLs:')
+  console.log('  /tag/KCH01-T01  → Kuching Main Warehouse, Tag 01')
+  console.log('  /tag/KCH02-T05  → Kuching Cold Storage, Tag 05')
+  console.log('  /tag/SBU01-T01  → Sibu Distribution Center, Tag 01')
+  console.log('  /tag/KK01-T03   → Kota Kinabalu Main Warehouse, Tag 03')
+  console.log('  /tag/SDK01-T01  → Sandakan Warehouse, Tag 01')
+  console.log('')
+  console.log('How it works:')
+  console.log('  1. Storekeeper hands a physical tag to a visitor group')
+  console.log('  2. First person scans the QR code and fills in full details')
+  console.log('  3. Additional people scan the same tag and just enter their name')
+  console.log('  4. When leaving, return the tag - storekeeper checks out the group')
   console.log('')
 }
 
