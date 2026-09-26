@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { VISITOR_TYPES, PURPOSES, VisitorType, VEHICLE_TYPES } from '@/lib/utils'
+import { VISITOR_TYPES, PURPOSES, VisitorType, VEHICLE_TYPES, displayLabel } from '@/lib/utils'
 
 interface TagInfo {
   id: string
@@ -183,7 +183,7 @@ export default function TagCheckInPage() {
     <main className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 py-8">
       <div className="container mx-auto px-4 max-w-lg">
         <div className="text-center mb-6">
-          <div className="inline-block bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-semibold mb-2">
+          <div className="inline-block bg-amber-800 text-white px-4 py-1 rounded-full text-sm font-semibold mb-2">
             {warehouseInfo.siteName}
           </div>
           <h2 className="text-lg text-gray-600">{warehouseInfo.name}</h2>
@@ -245,9 +245,16 @@ export default function TagCheckInPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="label">Full Name *</label>
+              <label htmlFor="visitor-name" className="label">
+                Full Name *
+              </label>
               <input
+                id="visitor-name"
+                name="name"
                 type="text"
+                inputMode="text"
+                autoComplete="name"
+                autoCapitalize="words"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
@@ -259,31 +266,50 @@ export default function TagCheckInPage() {
 
             {!hasActiveGroup && (
               <>
-                <div>
-                  <label className="label">Visitor Type *</label>
+                <fieldset>
+                  <legend className="label">Visitor Type *</legend>
                   <div className="grid grid-cols-2 gap-4">
-                    {VISITOR_TYPES.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => handleVisitorTypeChange(type)}
-                        className={`py-3 px-4 rounded-lg border-2 font-semibold transition-all ${
-                          formData.visitorType === type
-                            ? 'border-amber-500 bg-amber-50 text-amber-700'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                    {VISITOR_TYPES.map((type) => {
+                      const id = `visitor-type-${type.toLowerCase()}`
+                      const selected = formData.visitorType === type
+                      return (
+                        <div key={type}>
+                          <input
+                            id={id}
+                            type="radio"
+                            name="visitorType"
+                            value={type}
+                            checked={selected}
+                            onChange={() => handleVisitorTypeChange(type)}
+                            className="sr-only"
+                          />
+                          <label
+                            htmlFor={id}
+                            className={`block py-3 px-4 rounded-lg border-2 font-semibold text-center cursor-pointer transition-all ${
+                              selected
+                                ? 'border-amber-800 bg-amber-50 text-amber-900'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            {displayLabel(type)}
+                          </label>
+                        </div>
+                      )
+                    })}
                   </div>
-                </div>
+                </fieldset>
 
                 {formData.visitorType === 'EXTERNAL' && (
                   <div>
-                    <label className="label">Company *</label>
+                    <label htmlFor="visitor-company" className="label">
+                      Company *
+                    </label>
                     <input
+                      id="visitor-company"
+                      name="organization"
                       type="text"
+                      inputMode="text"
+                      autoComplete="organization"
                       required
                       value={formData.company}
                       onChange={(e) =>
@@ -297,9 +323,15 @@ export default function TagCheckInPage() {
 
                 {formData.visitorType === 'STAFF' && (
                   <div>
-                    <label className="label">Department *</label>
+                    <label htmlFor="visitor-department" className="label">
+                      Department *
+                    </label>
                     <input
+                      id="visitor-department"
+                      name="department"
                       type="text"
+                      inputMode="text"
+                      autoComplete="organization-title"
                       required
                       value={formData.department}
                       onChange={(e) =>
@@ -312,30 +344,41 @@ export default function TagCheckInPage() {
                 )}
 
                 <div>
-                  <label className="label">Purpose of Visit *</label>
+                  <label htmlFor="visit-purpose" className="label">
+                    Purpose of Visit *
+                  </label>
                   <select
+                    id="visit-purpose"
+                    name="purpose"
                     required
                     value={formData.purpose}
                     onChange={(e) => setFormData((prev) => ({ ...prev, purpose: e.target.value }))}
                     className="select-field"
                     disabled={formData.visitorType === 'STAFF'}
+                    aria-describedby={formData.visitorType === 'STAFF' ? 'purpose-locked' : undefined}
                   >
                     {purposes.map((purpose) => (
                       <option key={purpose} value={purpose}>
-                        {purpose}
+                        {displayLabel(purpose)}
                       </option>
                     ))}
                   </select>
                   {formData.visitorType === 'STAFF' && (
-                    <p className="text-sm text-gray-500 mt-1">Staff purpose is locked to GENERAL</p>
+                    <p id="purpose-locked" className="text-sm text-gray-500 mt-1">
+                      Staff purpose is locked to General
+                    </p>
                   )}
                 </div>
 
                 {formData.visitorType === 'EXTERNAL' && (
                   <>
                     <div>
-                      <label className="label">Vehicle Type</label>
+                      <label htmlFor="vehicle-type" className="label">
+                        Vehicle Type
+                      </label>
                       <select
+                        id="vehicle-type"
+                        name="vehicleType"
                         value={formData.vehicleType}
                         onChange={(e) =>
                           setFormData((prev) => ({ ...prev, vehicleType: e.target.value }))
@@ -344,7 +387,7 @@ export default function TagCheckInPage() {
                       >
                         {VEHICLE_TYPES.map((vType) => (
                           <option key={vType} value={vType}>
-                            {vType === 'NONE' ? 'No Vehicle' : vType}
+                            {displayLabel(vType)}
                           </option>
                         ))}
                       </select>
@@ -352,9 +395,17 @@ export default function TagCheckInPage() {
 
                     {formData.vehicleType !== 'NONE' && (
                       <div>
-                        <label className="label">License Plate Number</label>
+                        <label htmlFor="license-plate" className="label">
+                          License Plate Number
+                        </label>
                         <input
+                          id="license-plate"
+                          name="car-plate"
                           type="text"
+                          inputMode="text"
+                          autoComplete="off"
+                          autoCapitalize="characters"
+                          spellCheck={false}
                           value={formData.carPlate}
                           onChange={(e) =>
                             setFormData((prev) => ({

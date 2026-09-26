@@ -126,15 +126,16 @@ Visitors scan the QR code on a physical tag, which links to:
 
 1. Log in as SUPER_ADMIN or SITE_ADMIN
 2. Go to **Admin → Tags**
-3. Select a warehouse
-4. Click **Print Labels** to generate a printable sheet
+3. Optionally filter to one warehouse
+4. Click **Print Labels** (or **Print these** on a single warehouse) to open the label sheet
 
-Each label includes:
-- QR code linking to the tag URL
-- Large tag number (e.g., "01")
-- Tag code (e.g., "KCH01-T01")
-- Warehouse name
-- "Scan to check in" instruction
+Each label is about 54mm tall and includes:
+- A 32mm QR code linking to the production tag URL, with the 2-digit tag number beside it at about 20mm, extra bold and near-black
+- Tag code in bold (for example, KCH01-T01)
+- Warehouse name in regular grey
+- "Scan to check in" at 12pt, extra bold, in dark amber
+
+Labels are laid out for A4 with 10mm margins, two columns of five, and dashed cut lines. Ten labels fill one page. A further set of 10 starts on the next page, and a label never splits across pages. The QR code uses `NEXT_PUBLIC_SITE_URL` when that variable is set, so a label printed from a preview deployment still points at production. When it is unset, the QR code uses the current site origin.
 
 Print on adhesive label paper and attach to durable physical tags (plastic cards, key fobs, etc.).
 
@@ -172,7 +173,8 @@ Configure these in Vercel Dashboard → Settings → Environment Variables:
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string (e.g., `postgresql://user:pass@host:5432/db?sslmode=require`) |
 | `SESSION_SECRET` | Yes | Random string, minimum 32 characters for session encryption |
-| `SETUP_SECRET` | Optional | Secret for the admin seed endpoint |
+| `SETUP_SECRET` | Yes, to seed | Secret sent as `x-setup-secret` to `POST /api/admin/seed`. Required in every environment, including Vercel preview, because preview deployments use the production database |
+| `NEXT_PUBLIC_SITE_URL` | Recommended | Public origin encoded in printed tag QR codes. Production value: `https://web-cs-visitor-registration.vercel.app`. Falls back to the current origin when unset |
 
 ### Deploy Steps
 
@@ -186,6 +188,8 @@ curl -X POST https://your-app.vercel.app/api/admin/seed \
   -H "x-setup-secret: YOUR_SETUP_SECRET"
 ```
 
+`POST /api/admin/seed` rejects the request when `x-setup-secret` is missing or does not match `SETUP_SECRET`. That check applies on preview deployments as well as production.
+
 ### Notes
 
 - PWA is automatically disabled on Vercel (`VERCEL=1`) to avoid build issues with next-pwa
@@ -198,6 +202,8 @@ curl -X POST https://your-app.vercel.app/api/admin/seed \
 |------|--------|-----------------|
 | EXTERNAL | Company, Vehicle Type, Car Plate (optional) | GENERAL, TRUCK |
 | STAFF | Department | GENERAL (locked) |
+
+The check-in form, dashboard, and history show these codes as words (External, Staff, General, Truck, Car, and so on). Dates are shown as DD/MM/YYYY.
 
 ## Visitor Status Flow
 

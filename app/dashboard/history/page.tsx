@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { displayLabel, formatDateTime } from '@/lib/utils'
 
 interface Warehouse {
   id: string
@@ -180,7 +181,7 @@ export default function HistoryPage() {
                 onClick={() => setFilter(status)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filter === status
-                    ? 'bg-amber-600 text-white'
+                    ? 'bg-amber-800 text-white'
                     : 'bg-white text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -248,7 +249,7 @@ export default function HistoryPage() {
                               : 'bg-purple-100 text-purple-700'
                           }`}
                         >
-                          {visitor.visitorType}
+                          {displayLabel(visitor.visitorType)}
                         </span>
                         {visitor.tag && (
                           <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
@@ -275,7 +276,7 @@ export default function HistoryPage() {
                     )}
 
                     <div className="text-gray-500">
-                      <span className="text-gray-400">Purpose:</span> {visitor.purpose}
+                      <span className="text-gray-400">Purpose:</span> {displayLabel(visitor.purpose)}
                     </div>
 
                     {visitor.carPlate && (
@@ -287,11 +288,11 @@ export default function HistoryPage() {
                     <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs text-gray-500">
                       <div>
                         <span className="text-gray-400">In:</span>{' '}
-                        {new Date(visitor.timeIn).toLocaleString()}
+                        {formatDateTime(visitor.timeIn)}
                       </div>
                       <div>
                         <span className="text-gray-400">Out:</span>{' '}
-                        {visitor.timeOut ? new Date(visitor.timeOut).toLocaleString() : '-'}
+                        {visitor.timeOut ? formatDateTime(visitor.timeOut) : '-'}
                       </div>
                     </div>
 
@@ -383,20 +384,20 @@ export default function HistoryPage() {
                                 : 'bg-purple-100 text-purple-700'
                             }`}
                           >
-                            {visitor.visitorType}
+                            {displayLabel(visitor.visitorType)}
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                           {visitor.company || visitor.department || '-'}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {visitor.purpose}
+                          {displayLabel(visitor.purpose)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {new Date(visitor.timeIn).toLocaleString()}
+                          {formatDateTime(visitor.timeIn)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {visitor.timeOut ? new Date(visitor.timeOut).toLocaleString() : '-'}
+                          {visitor.timeOut ? formatDateTime(visitor.timeOut) : '-'}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div>
