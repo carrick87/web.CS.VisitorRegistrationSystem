@@ -208,6 +208,11 @@ export default function TagManagementPage() {
     ? tags.filter((t) => t.warehouse.id === printWarehouse.id)
     : tags
 
+  const labelPages: Tag[][] = []
+  for (let index = 0; index < tagsForPrint.length; index += 10) {
+    labelPages.push(tagsForPrint.slice(index, index + 10))
+  }
+
   const groupedTags = tags.reduce(
     (acc, tag) => {
       const key = tag.warehouse.id
@@ -533,7 +538,7 @@ export default function TagManagementPage() {
                   Print Labels{printWarehouse ? ` - ${printWarehouse.code}` : ''}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  A4, two columns of five. Cut along the dashed lines.
+                  A4 with 10mm margins, two columns of five. Cut along the dashed lines.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -551,11 +556,13 @@ export default function TagManagementPage() {
             </div>
 
             <div ref={printRef}>
-              <div className="label-sheet">
-                {tagsForPrint.map((tag) => (
-                  <TagLabel key={tag.id} tag={tag} />
-                ))}
-              </div>
+              {labelPages.map((pageTags, pageIndex) => (
+                <div className="label-sheet" key={pageTags[0]?.id ?? pageIndex}>
+                  {pageTags.map((tag) => (
+                    <TagLabel key={tag.id} tag={tag} />
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -568,15 +575,21 @@ const LABEL_CLASS_CSS = `
   .label-sheet {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-auto-rows: 58mm;
+    grid-auto-rows: 54mm;
     width: 100%;
+    break-after: page;
+    page-break-after: always;
+  }
+  .label-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
   .tag-label {
     box-sizing: border-box;
-    height: 58mm;
+    height: 54mm;
     border-right: 0.25mm dashed #4b5563;
     border-bottom: 0.25mm dashed #4b5563;
-    padding: 3mm 4mm 2.5mm;
+    padding: 2mm 3.5mm 1.5mm;
     display: flex;
     flex-direction: column;
     font-family: Arial, Helvetica, sans-serif;
@@ -588,8 +601,7 @@ const LABEL_CLASS_CSS = `
   .tag-label:nth-child(odd) {
     border-left: 0.25mm dashed #4b5563;
   }
-  .tag-label:nth-child(10n + 1),
-  .tag-label:nth-child(10n + 2) {
+  .tag-label:nth-child(-n + 2) {
     border-top: 0.25mm dashed #4b5563;
   }
   .tag-label-top {
@@ -616,24 +628,24 @@ const LABEL_CLASS_CSS = `
     letter-spacing: -0.03em;
   }
   .tag-label-code {
-    margin-top: 2mm;
-    font-size: 12pt;
+    margin-top: 1.4mm;
+    font-size: 11pt;
     line-height: 1.15;
     font-weight: 700;
     color: #171717;
   }
   .tag-label-warehouse {
-    margin-top: 0.6mm;
-    font-size: 11pt;
+    margin-top: 0.4mm;
+    font-size: 10pt;
     line-height: 1.15;
     font-weight: 400;
     color: #6b7280;
   }
   .tag-label-instruction {
     margin-top: 0.6mm;
-    font-size: 11pt;
+    font-size: 12pt;
     line-height: 1.15;
-    font-weight: 700;
+    font-weight: 800;
     color: #92400e;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -641,7 +653,7 @@ const LABEL_CLASS_CSS = `
 `
 
 const LABEL_PRINT_CSS = `
-  @page { size: A4 portrait; margin: 3.5mm 5mm; }
+  @page { size: A4 portrait; margin: 10mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; }
   body { font-family: Arial, Helvetica, sans-serif; color: #171717; }

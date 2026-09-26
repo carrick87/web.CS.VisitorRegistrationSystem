@@ -129,13 +129,13 @@ Visitors scan the QR code on a physical tag, which links to:
 3. Optionally filter to one warehouse
 4. Click **Print Labels** (or **Print these** on a single warehouse) to open the label sheet
 
-Each label is about 58mm tall and includes:
+Each label is about 54mm tall and includes:
 - A 32mm QR code linking to the production tag URL, with the 2-digit tag number beside it at about 20mm, extra bold and near-black
 - Tag code in bold (for example, KCH01-T01)
 - Warehouse name in regular grey
-- "Scan to check in" in bold dark amber
+- "Scan to check in" at 12pt, extra bold, in dark amber
 
-Labels are laid out for A4 in two columns of five, with dashed cut lines. The QR code uses `NEXT_PUBLIC_SITE_URL` when that variable is set, so a label printed from a preview deployment still points at production. When it is unset, the QR code uses the current site origin.
+Labels are laid out for A4 with 10mm margins, two columns of five, and dashed cut lines. Ten labels fill one page. A further set of 10 starts on the next page, and a label never splits across pages. The QR code uses `NEXT_PUBLIC_SITE_URL` when that variable is set, so a label printed from a preview deployment still points at production. When it is unset, the QR code uses the current site origin.
 
 Print on adhesive label paper and attach to durable physical tags (plastic cards, key fobs, etc.).
 
