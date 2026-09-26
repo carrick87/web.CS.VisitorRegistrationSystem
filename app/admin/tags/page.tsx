@@ -316,9 +316,9 @@ export default function TagManagementPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="button"
-              onClick={() => openPrintModal()}
+              onClick={() => openPrintModal(selectedWarehouse || undefined)}
               className="btn-primary"
-              disabled={tags.length === 0}
+              disabled={visibleTags.length === 0}
             >
               Print Labels
             </button>
