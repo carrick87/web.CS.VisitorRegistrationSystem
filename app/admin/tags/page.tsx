@@ -533,7 +533,7 @@ export default function TagManagementPage() {
                   Print Labels{printWarehouse ? ` - ${printWarehouse.code}` : ''}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  A4, two labels across. Cut along the dashed lines.
+                  A4, two columns of five. Cut along the dashed lines.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -567,56 +567,84 @@ export default function TagManagementPage() {
 const LABEL_CLASS_CSS = `
   .label-sheet {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4mm;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 58mm;
+    width: 100%;
   }
   .tag-label {
+    box-sizing: border-box;
+    height: 58mm;
+    border-right: 0.25mm dashed #4b5563;
+    border-bottom: 0.25mm dashed #4b5563;
+    padding: 3mm 4mm 2.5mm;
+    display: flex;
+    flex-direction: column;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #171717;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .tag-label:nth-child(odd) {
+    border-left: 0.25mm dashed #4b5563;
+  }
+  .tag-label:nth-child(10n + 1),
+  .tag-label:nth-child(10n + 2) {
+    border-top: 0.25mm dashed #4b5563;
+  }
+  .tag-label-top {
     display: flex;
     align-items: center;
     gap: 4mm;
-    border: 1px dashed #6b7280;
-    padding: 4mm;
-    break-inside: avoid;
-    page-break-inside: avoid;
-    min-height: 42mm;
+    height: 32mm;
   }
   .tag-label-qr {
-    width: 3.2cm;
-    height: 3.2cm;
+    width: 32mm;
+    height: 32mm;
     flex: 0 0 auto;
   }
   .tag-label-qr img {
-    width: 3.2cm;
-    height: 3.2cm;
+    width: 32mm;
+    height: 32mm;
     display: block;
   }
   .tag-label-number {
-    font-size: 2cm;
-    line-height: 0.9;
+    font-size: 20mm;
+    line-height: 1;
     font-weight: 800;
+    color: #171717;
     letter-spacing: -0.03em;
   }
   .tag-label-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 10pt;
-    margin-top: 1mm;
+    margin-top: 2mm;
+    font-size: 12pt;
+    line-height: 1.15;
+    font-weight: 700;
+    color: #171717;
   }
   .tag-label-warehouse {
-    font-size: 10pt;
-    color: #374151;
+    margin-top: 0.6mm;
+    font-size: 11pt;
+    line-height: 1.15;
+    font-weight: 400;
+    color: #6b7280;
   }
   .tag-label-instruction {
-    font-size: 10pt;
+    margin-top: 0.6mm;
+    font-size: 11pt;
+    line-height: 1.15;
     font-weight: 700;
-    margin-top: 1mm;
+    color: #92400e;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 `
 
 const LABEL_PRINT_CSS = `
-  @page { size: A4 portrait; margin: 12mm; }
+  @page { size: A4 portrait; margin: 3.5mm 5mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #111827; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #171717; }
   ${LABEL_CLASS_CSS}
 `
 
@@ -646,21 +674,21 @@ function TagLabel({ tag }: { tag: Tag }) {
 
   return (
     <div className="tag-label">
-      <div className="tag-label-qr">
-        {qrDataUrl && (
-          <img
-            src={qrDataUrl}
-            alt={`QR code for tag ${tag.code}`}
-            data-checkin-url={checkInUrl}
-          />
-        )}
-      </div>
-      <div>
+      <div className="tag-label-top">
+        <div className="tag-label-qr">
+          {qrDataUrl && (
+            <img
+              src={qrDataUrl}
+              alt={`QR code for tag ${tag.code}`}
+              data-checkin-url={checkInUrl}
+            />
+          )}
+        </div>
         <div className="tag-label-number">{tag.displayNumber}</div>
-        <div className="tag-label-code">{tag.code}</div>
-        <div className="tag-label-warehouse">{tag.warehouse.name}</div>
-        <div className="tag-label-instruction">Scan to check in</div>
       </div>
+      <div className="tag-label-code">{tag.code}</div>
+      <div className="tag-label-warehouse">{tag.warehouse.name}</div>
+      <div className="tag-label-instruction">Scan to check in</div>
     </div>
   )
 }
