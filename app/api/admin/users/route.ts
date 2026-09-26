@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSiteAdmin, isSuperAdmin, isSiteAdmin, getAccessibleSiteIds, getAccessibleWarehouseIds } from '@/lib/rbac'
 import { ROLES } from '@/lib/session'
+import { sortByCode } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true },
         },
         warehouses: {
+          orderBy: { warehouse: { code: 'asc' } },
           include: {
             warehouse: {
               select: { id: true, code: true, name: true },
@@ -51,7 +53,18 @@ export async function GET(request: NextRequest) {
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
     })
 
-    return NextResponse.json({ users })
+    return NextResponse.json({
+      users: users.map((user) => ({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role,
+        siteId: user.siteId,
+        site: user.site,
+        createdAt: user.createdAt,
+        warehouses: sortByCode(user.warehouses.map((uw) => uw.warehouse)),
+      })),
+    })
   } catch (error) {
     console.error('Get users error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -125,6 +138,7 @@ export async function POST(request: NextRequest) {
       include: {
         site: { select: { id: true, name: true } },
         warehouses: {
+          orderBy: { warehouse: { code: 'asc' } },
           include: {
             warehouse: { select: { id: true, code: true, name: true } },
           },
@@ -140,7 +154,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         siteId: user.siteId,
         site: user.site,
-        warehouses: user.warehouses.map(uw => uw.warehouse),
+        warehouses: sortByCode(user.warehouses.map((uw) => uw.warehouse)),
       },
     }, { status: 201 })
   } catch (error) {

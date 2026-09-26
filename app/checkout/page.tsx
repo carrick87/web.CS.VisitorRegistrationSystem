@@ -74,7 +74,7 @@ export default function CheckOutPage() {
         </div>
 
         <div className="text-center mt-6 text-gray-500 text-sm">
-          <p>© 2024 Harrisons Warehouse. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Harrisons Warehouse. All rights reserved.</p>
         </div>
       </div>
     </main>

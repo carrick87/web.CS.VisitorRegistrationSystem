@@ -24,6 +24,7 @@ export async function GET() {
             name: true,
             isActive: true,
           },
+          orderBy: { code: 'asc' },
         },
         _count: {
           select: {

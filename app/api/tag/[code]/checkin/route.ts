@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { generatePin, generateBrowserToken } from '@/lib/utils'
+import {
+  generatePin,
+  generateBrowserToken,
+  normalizePlate,
+  normalizeVehicleType,
+  truckPlateError,
+} from '@/lib/utils'
 
 export async function POST(
   request: NextRequest,
@@ -101,6 +107,11 @@ export async function POST(
         )
       }
 
+      const plateError = truckPlateError(vehicleType, carPlate, purpose)
+      if (plateError) {
+        return NextResponse.json({ error: plateError }, { status: 400 })
+      }
+
       visitorData = {
         tagId: tag.id,
         warehouseId: tag.warehouse.id,
@@ -109,8 +120,8 @@ export async function POST(
         company: visitorType === 'EXTERNAL' ? company : null,
         department: visitorType === 'STAFF' ? department : null,
         purpose,
-        carPlate: visitorType === 'EXTERNAL' ? carPlate || null : null,
-        vehicleType: vehicleType || null,
+        carPlate: visitorType === 'EXTERNAL' ? normalizePlate(carPlate) : null,
+        vehicleType: normalizeVehicleType(vehicleType),
         pin: generatePin(),
         browserToken: generateBrowserToken(),
         status: 'ACTIVE',

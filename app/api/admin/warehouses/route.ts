@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           select: { visitors: true, users: true },
         },
       },
-      orderBy: [{ site: { name: 'asc' } }, { name: 'asc' }],
+      orderBy: { code: 'asc' },
     })
 
     return NextResponse.json({ warehouses })

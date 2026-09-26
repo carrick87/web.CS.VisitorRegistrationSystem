@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import QRCode from 'qrcode'
-import { getTagCheckInUrl } from '@/lib/utils'
+import { getTagCheckInUrl, sortByCode } from '@/lib/utils'
 
 interface Warehouse {
   id: string
@@ -34,6 +34,44 @@ interface UserSession {
   role: string
   siteId?: string
   warehouses?: Warehouse[]
+}
+
+function compareTagNumber(a: string, b: string): number {
+  const aNum = Number.parseInt(a, 10)
+  const bNum = Number.parseInt(b, 10)
+  if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aNum !== bNum) {
+    return aNum - bNum
+  }
+  return a.localeCompare(b)
+}
+
+function groupTagsByWarehouse(source: Tag[]) {
+  const groups = new Map<string, { warehouse: Tag['warehouse']; tags: Tag[] }>()
+  const sorted = [...source].sort((a, b) => {
+    const byCode = a.warehouse.code.localeCompare(b.warehouse.code)
+    if (byCode !== 0) return byCode
+    return compareTagNumber(a.displayNumber, b.displayNumber)
+  })
+  for (const tag of sorted) {
+    const existing = groups.get(tag.warehouse.id)
+    if (existing) {
+      existing.tags.push(tag)
+    } else {
+      groups.set(tag.warehouse.id, { warehouse: tag.warehouse, tags: [tag] })
+    }
+  }
+  return Array.from(groups.values())
+}
+
+/** One A4 sheet per 10 tags, and a new sheet at each warehouse so warehouses never share a page. */
+function labelPagesFor(source: Tag[]): Tag[][] {
+  const pages: Tag[][] = []
+  for (const group of groupTagsByWarehouse(source)) {
+    for (let index = 0; index < group.tags.length; index += 10) {
+      pages.push(group.tags.slice(index, index + 10))
+    }
+  }
+  return pages
 }
 
 export default function TagManagementPage() {
@@ -69,7 +107,7 @@ export default function TagManagementPage() {
     if (user) {
       fetchTags()
     }
-  }, [user, selectedWarehouse])
+  }, [user])
 
   useEffect(() => {
     if (!menuTagId) return
@@ -102,7 +140,7 @@ export default function TagManagementPage() {
         return
       }
       setUser(data)
-      setWarehouses(data.warehouses || [])
+      setWarehouses(sortByCode(data.warehouses || []))
     } catch {
       router.push('/login')
     }
@@ -111,8 +149,7 @@ export default function TagManagementPage() {
   const fetchTags = async () => {
     setLoading(true)
     try {
-      const warehouseParam = selectedWarehouse ? `?warehouseId=${selectedWarehouse}` : ''
-      const response = await fetch(`/api/admin/tags${warehouseParam}`)
+      const response = await fetch('/api/admin/tags')
       const data = await response.json()
       setTags(data.tags || [])
     } catch (error) {
@@ -188,14 +225,15 @@ export default function TagManagementPage() {
     setShowPrintModal(true)
   }
 
+  const visibleTags = selectedWarehouse
+    ? tags.filter((tag) => tag.warehouse.id === selectedWarehouse)
+    : tags
+
   const tagsForPrint = printWarehouse
     ? tags.filter((t) => t.warehouse.id === printWarehouse.id)
     : tags
 
-  const labelPages: Tag[][] = []
-  for (let index = 0; index < tagsForPrint.length; index += 10) {
-    labelPages.push(tagsForPrint.slice(index, index + 10))
-  }
+  const labelPages = labelPagesFor(tagsForPrint)
 
   const qrTrackKey = `${showPrintModal ? 'open' : 'closed'}:${tagsForPrint.map((tag) => tag.id).join('|')}`
   if (qrTrack.key !== qrTrackKey) {
@@ -222,7 +260,9 @@ export default function TagManagementPage() {
     ) {
       return
     }
-    const title = printWarehouse?.code ? `Tag Labels - ${printWarehouse.code}` : 'Tag Labels'
+    const title = printWarehouse?.code
+      ? `Tag Labels - ${printWarehouse.code}`
+      : 'Tag Labels - All Warehouses'
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
     printWindow.document.write(`<!DOCTYPE html>
@@ -240,20 +280,7 @@ export default function TagManagementPage() {
     printWindow.document.close()
   }
 
-  const groupedTags = tags.reduce(
-    (acc, tag) => {
-      const key = tag.warehouse.id
-      if (!acc[key]) {
-        acc[key] = {
-          warehouse: tag.warehouse,
-          tags: [],
-        }
-      }
-      acc[key].tags.push(tag)
-      return acc
-    },
-    {} as Record<string, { warehouse: Tag['warehouse']; tags: Tag[] }>
-  )
+  const groupedTags = groupTagsByWarehouse(visibleTags)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -289,9 +316,9 @@ export default function TagManagementPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="button"
-              onClick={() => openPrintModal()}
+              onClick={() => openPrintModal(selectedWarehouse || undefined)}
               className="btn-primary"
-              disabled={tags.length === 0}
+              disabled={visibleTags.length === 0}
             >
               Print Labels
             </button>
@@ -327,7 +354,7 @@ export default function TagManagementPage() {
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
           </div>
-        ) : tags.length === 0 ? (
+        ) : visibleTags.length === 0 ? (
           <div className="card text-center py-12">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -350,7 +377,7 @@ export default function TagManagementPage() {
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.values(groupedTags).map(({ warehouse, tags: warehouseTags }) => (
+            {groupedTags.map(({ warehouse, tags: warehouseTags }) => (
               <div key={warehouse.id}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -563,7 +590,7 @@ export default function TagManagementPage() {
               <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-t-xl border-b border-gray-200 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-gray-800">
-                    Print Labels{printWarehouse ? ` - ${printWarehouse.code}` : ''}
+                    Print Labels{printWarehouse ? ` - ${printWarehouse.code}` : ' - All Warehouses'}
                   </h2>
                   <p className="text-sm text-gray-500">
                     A4 with 10mm margins, two columns of five. Cut along the dashed lines.

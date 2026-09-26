@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession, UserRole } from '@/lib/session'
+import { sortByCode } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
       include: {
         site: true,
         warehouses: {
+          orderBy: { warehouse: { code: 'asc' } },
           include: {
             warehouse: true,
           },
@@ -49,11 +51,13 @@ export async function POST(request: NextRequest) {
         siteId: user.siteId,
         siteName: user.site?.name || null,
         warehouseIds,
-        warehouses: user.warehouses.map(uw => ({
-          id: uw.warehouse.id,
-          code: uw.warehouse.code,
-          name: uw.warehouse.name,
-        })),
+        warehouses: sortByCode(
+          user.warehouses.map((uw) => ({
+            id: uw.warehouse.id,
+            code: uw.warehouse.code,
+            name: uw.warehouse.name,
+          }))
+        ),
       },
     })
   } catch (error) {

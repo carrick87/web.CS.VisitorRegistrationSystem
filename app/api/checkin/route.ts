@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { generatePin, generateBrowserToken } from '@/lib/utils'
+import {
+  generatePin,
+  generateBrowserToken,
+  normalizePlate,
+  normalizeVehicleType,
+  truckPlateError,
+} from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { warehouseCode, name, visitorType, company, department, purpose, carPlate } = body
+    const { warehouseCode, name, visitorType, company, department, purpose, carPlate, vehicleType } =
+      body
 
     if (!warehouseCode) {
       return NextResponse.json({ error: 'Warehouse code is required' }, { status: 400 })
@@ -36,6 +43,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Department is required for staff visitors' }, { status: 400 })
     }
 
+    const plateError = truckPlateError(vehicleType, carPlate, purpose)
+    if (plateError) {
+      return NextResponse.json({ error: plateError }, { status: 400 })
+    }
+
     const pin = generatePin()
     const browserToken = generateBrowserToken()
 
@@ -47,7 +59,8 @@ export async function POST(request: NextRequest) {
         company: visitorType === 'EXTERNAL' ? company : null,
         department: visitorType === 'STAFF' ? department : null,
         purpose,
-        carPlate: visitorType === 'EXTERNAL' ? carPlate : null,
+        carPlate: visitorType === 'EXTERNAL' ? normalizePlate(carPlate) : null,
+        vehicleType: normalizeVehicleType(vehicleType),
         pin,
         browserToken,
         status: 'ACTIVE',

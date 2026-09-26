@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getManagedWarehouses } from '@/lib/rbac'
+import { sortByCode } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -24,7 +25,7 @@ export async function GET() {
       })
     }
 
-    const warehouses = await getManagedWarehouses(user)
+    const warehouses = sortByCode(await getManagedWarehouses(user))
 
     return NextResponse.json({
       isLoggedIn: session.isLoggedIn,
