@@ -61,6 +61,13 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        tag: {
+          select: {
+            id: true,
+            code: true,
+            displayNumber: true,
+          },
+        },
       },
       orderBy: { timeIn: 'desc' },
     })

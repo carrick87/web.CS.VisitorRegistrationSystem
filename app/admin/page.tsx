@@ -158,6 +158,9 @@ export default function AdminPage() {
               <Link href="/admin/users" className="text-gray-600 hover:text-gray-800">
                 Users
               </Link>
+              <Link href="/admin/tags" className="text-gray-600 hover:text-gray-800">
+                Tags
+              </Link>
               <Link href="/dashboard" className="text-gray-600 hover:text-gray-800">
                 Visitors
               </Link>

@@ -108,7 +108,10 @@ export default function SiteAdminPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/admin/users" className="text-gray-600 hover:text-gray-800">
-                Manage Users
+                Users
+              </Link>
+              <Link href="/admin/tags" className="text-gray-600 hover:text-gray-800">
+                Tags
               </Link>
               <Link href="/dashboard" className="text-gray-600 hover:text-gray-800">
                 Visitors
@@ -178,9 +181,9 @@ export default function SiteAdminPage() {
                     <span>{warehouse._count.users} users</span>
                   </div>
                   <div className="pt-3 border-t border-gray-100">
-                    <p className="text-xs text-gray-400 mb-2">Check-in URL:</p>
+                    <p className="text-xs text-gray-400 mb-2">Tag URL format:</p>
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded block break-all">
-                      /checkin/{warehouse.code}
+                      /tag/{warehouse.code}-T01
                     </code>
                   </div>
                 </div>
