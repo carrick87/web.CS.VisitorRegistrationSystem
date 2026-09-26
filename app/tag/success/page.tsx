@@ -36,7 +36,7 @@ function SuccessContent() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-gray-800">You're Checked In!</h1>
+        <h1 className="text-2xl font-bold text-gray-800">You&apos;re Checked In!</h1>
         <p className="text-gray-500 mt-2">
           {isLeader ? 'Group visit started' : 'You have joined the group'}
         </p>

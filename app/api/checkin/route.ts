@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Department is required for staff visitors' }, { status: 400 })
     }
 
-    const plateError = truckPlateError(vehicleType, carPlate)
+    const plateError = truckPlateError(vehicleType, carPlate, purpose)
     if (plateError) {
       return NextResponse.json({ error: plateError }, { status: 400 })
     }

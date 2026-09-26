@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { sortByCode } from '@/lib/utils'
+import { displayLabel, formatDateTime, sortByCode } from '@/lib/utils'
 
 interface Warehouse {
   id: string
@@ -471,7 +471,7 @@ export default function DashboardPage() {
                         )}
                         <div>
                           <span className="text-gray-400">Purpose:</span>{' '}
-                          <span className="text-gray-700">{tag.groupInfo.purpose}</span>
+                          <span className="text-gray-700">{displayLabel(tag.groupInfo.purpose)}</span>
                         </div>
                         {tag.groupInfo.carPlate && (
                           <div>
@@ -488,22 +488,25 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-500 mb-2">
                       {tag.visitorCount} {tag.visitorCount === 1 ? 'person' : 'people'}
                     </p>
-                    <ul className="space-y-1">
+                    <ul className="space-y-3">
                       {tag.visitors.map((visitor) => (
                         <li
                           key={visitor.id}
-                          className="flex items-center justify-between text-sm py-1 px-2 bg-gray-50 rounded"
+                          className="flex items-center justify-between gap-3 min-h-[44px] text-sm px-2 bg-gray-50 rounded-lg"
                         >
-                          <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-2 min-w-0">
                             {visitor.isGroupLeader && (
-                              <span className="w-2 h-2 bg-amber-500 rounded-full" title="Group leader"></span>
+                              <span className="shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                                Lead
+                              </span>
                             )}
-                            {visitor.name}
+                            <span className="truncate text-gray-800">{visitor.name}</span>
                           </span>
                           {tag.visitorCount > 1 && (
                             <button
+                              type="button"
                               onClick={() => openSingleCheckout(tag, visitor)}
-                              className="text-xs text-gray-500 hover:text-amber-600"
+                              className="shrink-0 min-h-[44px] px-4 text-sm font-medium text-amber-900 hover:bg-amber-100 rounded-lg"
                             >
                               Check out
                             </button>
@@ -514,15 +517,16 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Duration and checkout button */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="pt-4 border-t border-gray-100 space-y-3">
                     <span
-                      className={`text-sm ${tag.isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}
+                      className={`block text-sm ${tag.isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}
                     >
                       On site {formatDuration(tag.durationMs)}
                     </span>
                     <button
+                      type="button"
                       onClick={() => openGroupCheckout(tag)}
-                      className="text-sm px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                      className="w-full min-h-[44px] text-sm font-semibold px-4 py-3 border border-gray-300 rounded-lg text-gray-800 hover:bg-gray-50"
                     >
                       Check out {tag.visitorCount > 1 ? 'group' : 'visitor'}
                     </button>
@@ -550,11 +554,11 @@ export default function DashboardPage() {
                                 : 'bg-purple-100 text-purple-700'
                             }`}
                           >
-                            {visitor.visitorType}
+                            {displayLabel(visitor.visitorType)}
                           </span>
                         </div>
                         <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                          ACTIVE
+                          {displayLabel('ACTIVE')}
                         </span>
                       </div>
 
@@ -577,7 +581,7 @@ export default function DashboardPage() {
                           </div>
                         )}
                         <div>
-                          <span className="text-gray-400">Purpose:</span> {visitor.purpose}
+                          <span className="text-gray-400">Purpose:</span> {displayLabel(visitor.purpose)}
                         </div>
                         {visitor.carPlate && (
                           <div>
@@ -586,13 +590,13 @@ export default function DashboardPage() {
                         )}
                         <div>
                           <span className="text-gray-400">Time In:</span>{' '}
-                          {new Date(visitor.timeIn).toLocaleString()}
+                          {formatDateTime(visitor.timeIn)}
                         </div>
                       </div>
 
                       <button
                         onClick={() => openLegacyCheckout(visitor)}
-                        className="w-full text-sm px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                        className="w-full min-h-[44px] text-sm font-semibold px-4 py-3 border border-gray-300 rounded-lg text-gray-800 hover:bg-gray-50"
                       >
                         Check out visitor
                       </button>

@@ -107,7 +107,7 @@ export async function POST(
         )
       }
 
-      const plateError = truckPlateError(vehicleType, carPlate)
+      const plateError = truckPlateError(vehicleType, carPlate, purpose)
       if (plateError) {
         return NextResponse.json({ error: plateError }, { status: 400 })
       }

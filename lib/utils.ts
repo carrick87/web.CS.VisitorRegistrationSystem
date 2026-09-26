@@ -8,25 +8,59 @@ export function generateBrowserToken(): string {
   return uuidv4()
 }
 
-export function formatDateTime(date: Date | string): string {
-  const d = new Date(date)
-  return d.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+function pad2(value: number): string {
+  return value.toString().padStart(2, '0')
 }
 
+/** Malaysian date format: DD/MM/YYYY. Uses the viewer's local calendar date. */
 export function formatDate(date: Date | string): string {
   const d = new Date(date)
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`
+}
+
+/** Malaysian date and 24-hour time: DD/MM/YYYY, HH:mm. */
+export function formatDateTime(date: Date | string): string {
+  const d = new Date(date)
+  return `${formatDate(d)}, ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/**
+ * Origin encoded in permanent tag QR codes.
+ * Uses NEXT_PUBLIC_SITE_URL when set so labels printed from a preview
+ * still point at production. Falls back to the current origin otherwise.
+ */
+export function getPublicSiteUrl(fallbackOrigin?: string): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (configured) {
+    return configured.replace(/\/+$/, '')
+  }
+  const fallback = fallbackOrigin ?? (typeof window !== 'undefined' ? window.location.origin : '')
+  return fallback.replace(/\/+$/, '')
+}
+
+export function getTagCheckInUrl(tagCode: string, fallbackOrigin?: string): string {
+  return `${getPublicSiteUrl(fallbackOrigin)}/tag/${encodeURIComponent(tagCode)}`
+}
+
+const ENUM_LABELS: Record<string, string> = {
+  EXTERNAL: 'External',
+  STAFF: 'Staff',
+  GENERAL: 'General',
+  TRUCK: 'Truck',
+  NONE: 'No vehicle',
+  CAR: 'Car',
+  MOTORCYCLE: 'Motorcycle',
+  VAN: 'Van',
+  ACTIVE: 'Active',
+  COMPLETED: 'Checked out',
+  FORCE_COMPLETED: 'Checked out by staff',
+  STAFF_CHECKOUT: 'Checked out by staff',
+}
+
+/** Friendly words for stored enum codes (visitor type, purpose, vehicle, status). */
+export function displayLabel(value: string | null | undefined): string {
+  if (!value) return ''
+  return ENUM_LABELS[value] ?? value
 }
 
 export function formatTime(date: Date | string): string {
@@ -55,6 +89,10 @@ export function isTruckVehicleType(vehicleType: unknown): boolean {
   return typeof vehicleType === 'string' && vehicleType.trim().toUpperCase() === 'TRUCK'
 }
 
+export function isTruckPurpose(purpose: unknown): boolean {
+  return typeof purpose === 'string' && purpose.trim().toUpperCase() === 'TRUCK'
+}
+
 export function normalizePlate(carPlate: unknown): string | null {
   if (typeof carPlate !== 'string') return null
   const trimmed = carPlate.trim()
@@ -67,8 +105,12 @@ export function normalizeVehicleType(vehicleType: unknown): string | null {
   return trimmed ? trimmed : null
 }
 
-export function truckPlateError(vehicleType: unknown, carPlate: unknown): string | null {
-  if (!isTruckVehicleType(vehicleType)) return null
+export function truckPlateError(
+  vehicleType: unknown,
+  carPlate: unknown,
+  purpose?: unknown
+): string | null {
+  if (!isTruckVehicleType(vehicleType) && !isTruckPurpose(purpose)) return null
   if (!normalizePlate(carPlate)) return TRUCK_PLATE_REQUIRED_MESSAGE
   return null
 }
