@@ -331,7 +331,7 @@ export default function TagCheckInPage() {
                       name="department"
                       type="text"
                       inputMode="text"
-                      autoComplete="organization"
+                      autoComplete="organization-title"
                       required
                       value={formData.department}
                       onChange={(e) =>

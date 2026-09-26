@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import QRCode from 'qrcode'
@@ -55,6 +55,10 @@ export default function TagManagementPage() {
   })
   const [deleting, setDeleting] = useState(false)
   const [menuTagId, setMenuTagId] = useState<string | null>(null)
+  const [qrTrack, setQrTrack] = useState<{ key: string; ready: Set<string> }>({
+    key: '',
+    ready: new Set(),
+  })
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -184,8 +188,40 @@ export default function TagManagementPage() {
     setShowPrintModal(true)
   }
 
+  const tagsForPrint = printWarehouse
+    ? tags.filter((t) => t.warehouse.id === printWarehouse.id)
+    : tags
+
+  const labelPages: Tag[][] = []
+  for (let index = 0; index < tagsForPrint.length; index += 10) {
+    labelPages.push(tagsForPrint.slice(index, index + 10))
+  }
+
+  const qrTrackKey = `${showPrintModal ? 'open' : 'closed'}:${tagsForPrint.map((tag) => tag.id).join('|')}`
+  if (qrTrack.key !== qrTrackKey) {
+    setQrTrack({ key: qrTrackKey, ready: new Set() })
+  }
+  const qrReady =
+    tagsForPrint.length > 0 && tagsForPrint.every((tag) => qrTrack.ready.has(tag.id))
+
+  const handleQrReady = useCallback((tagId: string) => {
+    setQrTrack((current) => {
+      if (current.ready.has(tagId)) return current
+      const ready = new Set(current.ready)
+      ready.add(tagId)
+      return { key: current.key, ready }
+    })
+  }, [])
+
   const handlePrint = () => {
-    if (!printRef.current) return
+    if (!printRef.current || !qrReady) return
+    const images = Array.from(printRef.current.querySelectorAll('img[data-checkin-url]'))
+    if (
+      images.length !== tagsForPrint.length ||
+      images.some((image) => !image.getAttribute('src'))
+    ) {
+      return
+    }
     const title = printWarehouse?.code ? `Tag Labels - ${printWarehouse.code}` : 'Tag Labels'
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
@@ -202,15 +238,6 @@ export default function TagManagementPage() {
       </body>
       </html>`)
     printWindow.document.close()
-  }
-
-  const tagsForPrint = printWarehouse
-    ? tags.filter((t) => t.warehouse.id === printWarehouse.id)
-    : tags
-
-  const labelPages: Tag[][] = []
-  for (let index = 0; index < tagsForPrint.length; index += 10) {
-    labelPages.push(tagsForPrint.slice(index, index + 10))
   }
 
   const groupedTags = tags.reduce(
@@ -530,39 +557,46 @@ export default function TagManagementPage() {
 
       {/* Print Modal */}
       {showPrintModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-auto">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 my-8">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  Print Labels{printWarehouse ? ` - ${printWarehouse.code}` : ''}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  A4 with 10mm margins, two columns of five. Cut along the dashed lines.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={handlePrint} className="btn-primary">
-                  Print
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPrintModal(false)}
-                  className="btn-secondary"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div ref={printRef}>
-              {labelPages.map((pageTags, pageIndex) => (
-                <div className="label-sheet" key={pageTags[0]?.id ?? pageIndex}>
-                  {pageTags.map((tag) => (
-                    <TagLabel key={tag.id} tag={tag} />
-                  ))}
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50">
+          <div className="flex min-h-full items-start justify-center p-4">
+            <div className="my-4 w-full max-w-4xl rounded-xl bg-white shadow-xl">
+              <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-t-xl border-b border-gray-200 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">
+                    Print Labels{printWarehouse ? ` - ${printWarehouse.code}` : ''}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    A4 with 10mm margins, two columns of five. Cut along the dashed lines.
+                  </p>
                 </div>
-              ))}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="btn-primary"
+                    disabled={!qrReady}
+                  >
+                    {qrReady ? 'Print' : 'Preparing QR codes…'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintModal(false)}
+                    className="btn-secondary"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div ref={printRef} className="px-6 pb-6 pt-4">
+                {labelPages.map((pageTags, pageIndex) => (
+                  <div className="label-sheet" key={pageTags[0]?.id ?? pageIndex}>
+                    {pageTags.map((tag) => (
+                      <TagLabel key={tag.id} tag={tag} onQrReady={handleQrReady} />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -660,7 +694,7 @@ const LABEL_PRINT_CSS = `
   ${LABEL_CLASS_CSS}
 `
 
-function TagLabel({ tag }: { tag: Tag }) {
+function TagLabel({ tag, onQrReady }: { tag: Tag; onQrReady: (tagId: string) => void }) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const checkInUrl = getTagCheckInUrl(tag.code)
 
@@ -673,7 +707,10 @@ function TagLabel({ tag }: { tag: Tag }) {
           margin: 1,
           errorCorrectionLevel: 'H',
         })
-        if (!cancelled) setQrDataUrl(dataUrl)
+        if (!cancelled) {
+          setQrDataUrl(dataUrl)
+          onQrReady(tag.id)
+        }
       } catch (err) {
         console.error('Failed to generate QR:', err)
       }
@@ -682,7 +719,7 @@ function TagLabel({ tag }: { tag: Tag }) {
     return () => {
       cancelled = true
     }
-  }, [checkInUrl])
+  }, [checkInUrl, onQrReady, tag.id])
 
   return (
     <div className="tag-label">
