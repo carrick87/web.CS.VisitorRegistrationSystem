@@ -26,7 +26,7 @@ export async function GET(
               select: { visitors: true, users: true },
             },
           },
-          orderBy: { name: 'asc' },
+          orderBy: { code: 'asc' },
         },
         users: {
           select: {

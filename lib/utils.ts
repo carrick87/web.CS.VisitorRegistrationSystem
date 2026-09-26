@@ -49,6 +49,34 @@ export const PURPOSES = {
 export const VEHICLE_TYPES = ['NONE', 'CAR', 'MOTORCYCLE', 'TRUCK', 'VAN'] as const
 export type VehicleType = typeof VEHICLE_TYPES[number]
 
+export const TRUCK_PLATE_REQUIRED_MESSAGE = 'License plate number is required for trucks'
+
+export function isTruckVehicleType(vehicleType: unknown): boolean {
+  return typeof vehicleType === 'string' && vehicleType.trim().toUpperCase() === 'TRUCK'
+}
+
+export function normalizePlate(carPlate: unknown): string | null {
+  if (typeof carPlate !== 'string') return null
+  const trimmed = carPlate.trim()
+  return trimmed ? trimmed : null
+}
+
+export function normalizeVehicleType(vehicleType: unknown): string | null {
+  if (typeof vehicleType !== 'string') return null
+  const trimmed = vehicleType.trim().toUpperCase()
+  return trimmed ? trimmed : null
+}
+
+export function truckPlateError(vehicleType: unknown, carPlate: unknown): string | null {
+  if (!isTruckVehicleType(vehicleType)) return null
+  if (!normalizePlate(carPlate)) return TRUCK_PLATE_REQUIRED_MESSAGE
+  return null
+}
+
+export function sortByCode<T extends { code: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.code.localeCompare(b.code))
+}
+
 export const VISITOR_STATUS = ['ACTIVE', 'COMPLETED', 'FORCE_COMPLETED', 'STAFF_CHECKOUT'] as const
 export type VisitorStatus = typeof VISITOR_STATUS[number]
 

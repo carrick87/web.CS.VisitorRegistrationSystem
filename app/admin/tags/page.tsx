@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import QRCode from 'qrcode'
+import { sortByCode } from '@/lib/utils'
 
 interface Warehouse {
   id: string
@@ -35,6 +36,34 @@ interface UserSession {
   warehouses?: Warehouse[]
 }
 
+function compareTagNumber(a: string, b: string): number {
+  const aNum = Number.parseInt(a, 10)
+  const bNum = Number.parseInt(b, 10)
+  if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aNum !== bNum) {
+    return aNum - bNum
+  }
+  return a.localeCompare(b)
+}
+
+function groupTagsByWarehouse(source: Tag[]) {
+  const groups = new Map<string, { warehouse: Tag['warehouse']; tags: Tag[] }>()
+  for (const tag of source) {
+    const existing = groups.get(tag.warehouse.id)
+    if (existing) {
+      existing.tags.push(tag)
+    } else {
+      groups.set(tag.warehouse.id, { warehouse: tag.warehouse, tags: [tag] })
+    }
+  }
+
+  return Array.from(groups.values())
+    .sort((a, b) => a.warehouse.code.localeCompare(b.warehouse.code))
+    .map((group) => ({
+      ...group,
+      tags: [...group.tags].sort((a, b) => compareTagNumber(a.displayNumber, b.displayNumber)),
+    }))
+}
+
 export default function TagManagementPage() {
   const router = useRouter()
   const [user, setUser] = useState<UserSession | null>(null)
@@ -44,7 +73,7 @@ export default function TagManagementPage() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showPrintModal, setShowPrintModal] = useState(false)
-  const [printWarehouse, setPrintWarehouse] = useState<Warehouse | null>(null)
+  const [printTarget, setPrintTarget] = useState<'all' | string | null>(null)
   const [createForm, setCreateForm] = useState({ warehouseId: '', displayNumber: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -63,7 +92,7 @@ export default function TagManagementPage() {
     if (user) {
       fetchTags()
     }
-  }, [user, selectedWarehouse])
+  }, [user])
 
   const checkAuth = async () => {
     try {
@@ -78,7 +107,23 @@ export default function TagManagementPage() {
         return
       }
       setUser(data)
-      setWarehouses(data.warehouses || [])
+
+      const warehousesResponse = await fetch('/api/admin/warehouses')
+      if (warehousesResponse.ok) {
+        const warehousesData = await warehousesResponse.json()
+        const warehouseList = (warehousesData.warehouses || []).map(
+          (warehouse: Warehouse & { site?: { id: string; name: string } }) => ({
+            id: warehouse.id,
+            code: warehouse.code,
+            name: warehouse.name,
+            siteName: warehouse.site?.name || warehouse.siteName,
+            site: warehouse.site,
+          })
+        )
+        setWarehouses(sortByCode(warehouseList))
+      } else {
+        setWarehouses(sortByCode(data.warehouses || []))
+      }
     } catch {
       router.push('/login')
     }
@@ -87,8 +132,7 @@ export default function TagManagementPage() {
   const fetchTags = async () => {
     setLoading(true)
     try {
-      const warehouseParam = selectedWarehouse ? `?warehouseId=${selectedWarehouse}` : ''
-      const response = await fetch(`/api/admin/tags${warehouseParam}`)
+      const response = await fetch('/api/admin/tags')
       const data = await response.json()
       setTags(data.tags || [])
     } catch (error) {
@@ -138,15 +182,24 @@ export default function TagManagementPage() {
     }
   }
 
-  const openPrintModal = (warehouseId: string) => {
-    const warehouse = warehouses.find((w) => w.id === warehouseId)
-    if (warehouse) {
-      setPrintWarehouse({
-        ...warehouse,
-        siteName: warehouse.site?.name || warehouse.siteName || '',
-      })
-      setShowPrintModal(true)
-    }
+  const visibleTags = selectedWarehouse
+    ? tags.filter((tag) => tag.warehouse.id === selectedWarehouse)
+    : tags
+  const groupedTags = groupTagsByWarehouse(visibleTags)
+  const printSections =
+    showPrintModal && printTarget
+      ? groupTagsByWarehouse(
+          printTarget === 'all'
+            ? tags
+            : tags.filter((tag) => tag.warehouse.id === printTarget)
+        )
+      : []
+  const printTitle =
+    printTarget === 'all' ? 'All Warehouses' : printSections[0]?.warehouse.code || ''
+
+  const openPrintModal = (target: 'all' | string) => {
+    setPrintTarget(target)
+    setShowPrintModal(true)
   }
 
   const handlePrint = () => {
@@ -157,7 +210,7 @@ export default function TagManagementPage() {
           <!DOCTYPE html>
           <html>
           <head>
-            <title>Tag Labels - ${printWarehouse?.code}</title>
+            <title>Tag Labels - ${printTitle}</title>
             <style>
               @media print {
                 body { margin: 0; padding: 0; }
@@ -222,6 +275,10 @@ export default function TagManagementPage() {
                 color: #666;
                 margin: 5px 0 0 0;
               }
+              .warehouse-sheet + .warehouse-sheet {
+                page-break-before: always;
+                break-before: page;
+              }
             </style>
           </head>
           <body>
@@ -234,25 +291,6 @@ export default function TagManagementPage() {
       }
     }
   }
-
-  const tagsForPrint = printWarehouse
-    ? tags.filter((t) => t.warehouse.id === printWarehouse.id)
-    : []
-
-  const groupedTags = tags.reduce(
-    (acc, tag) => {
-      const key = tag.warehouse.id
-      if (!acc[key]) {
-        acc[key] = {
-          warehouse: tag.warehouse,
-          tags: [],
-        }
-      }
-      acc[key].tags.push(tag)
-      return acc
-    },
-    {} as Record<string, { warehouse: Tag['warehouse']; tags: Tag[] }>
-  )
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -284,9 +322,19 @@ export default function TagManagementPage() {
             <h1 className="text-2xl font-bold text-gray-800">Visitor Tags</h1>
             <p className="text-gray-500">Manage physical visitor tags for each warehouse</p>
           </div>
-          <button onClick={() => setShowCreateModal(true)} className="btn-primary">
-            + Create Tag
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={() => openPrintModal('all')}
+              className="btn-secondary"
+              disabled={tags.length === 0}
+            >
+              Print all labels
+            </button>
+            <button onClick={() => setShowCreateModal(true)} className="btn-primary">
+              + Create Tag
+            </button>
+          </div>
         </div>
 
         {/* Warehouse filter */}
@@ -334,7 +382,7 @@ export default function TagManagementPage() {
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.values(groupedTags).map(({ warehouse, tags: warehouseTags }) => (
+            {groupedTags.map(({ warehouse, tags: warehouseTags }) => (
               <div key={warehouse.id}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -500,19 +548,23 @@ export default function TagManagementPage() {
       )}
 
       {/* Print Modal */}
-      {showPrintModal && printWarehouse && (
+      {showPrintModal && printTarget && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-auto">
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 my-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-800">
-                Print Labels - {printWarehouse.code}
+                Print Labels - {printTitle}
               </h2>
               <div className="flex gap-2">
-                <button onClick={handlePrint} className="btn-primary">
+                <button onClick={handlePrint} className="btn-primary" disabled={printSections.length === 0}>
                   Print
                 </button>
                 <button
-                  onClick={() => setShowPrintModal(false)}
+                  type="button"
+                  onClick={() => {
+                    setShowPrintModal(false)
+                    setPrintTarget(null)
+                  }}
                   className="btn-secondary"
                 >
                   Close
@@ -521,15 +573,23 @@ export default function TagManagementPage() {
             </div>
 
             <div ref={printRef}>
-              <div className="header">
-                <h1>Visitor Tags - {printWarehouse.name}</h1>
-                <p>{printWarehouse.code}</p>
-              </div>
-              <div className="label-grid">
-                {tagsForPrint.map((tag) => (
-                  <TagLabel key={tag.id} tag={tag} baseUrl={typeof window !== 'undefined' ? window.location.origin : ''} />
-                ))}
-              </div>
+              {printSections.map(({ warehouse, tags: warehouseTags }) => (
+                <div key={warehouse.id} className="warehouse-sheet mb-8">
+                  <div className="header">
+                    <h1>Visitor Tags - {warehouse.name}</h1>
+                    <p>{warehouse.code}</p>
+                  </div>
+                  <div className="label-grid">
+                    {warehouseTags.map((tag) => (
+                      <TagLabel
+                        key={tag.id}
+                        tag={tag}
+                        baseUrl={typeof window !== 'undefined' ? window.location.origin : ''}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

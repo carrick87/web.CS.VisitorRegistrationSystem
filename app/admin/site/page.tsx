@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { sortByCode } from '@/lib/utils'
 
 interface UserSession {
   name: string
@@ -73,7 +74,7 @@ export default function SiteAdminPage() {
         warehousesRes.json(),
         usersRes.json(),
       ])
-      setWarehouses(warehousesData.warehouses || [])
+      setWarehouses(sortByCode(warehousesData.warehouses || []))
       setUsers(usersData.users?.filter((u: User) => u.role === 'STOREKEEPER') || [])
     } catch (error) {
       console.error('Failed to fetch data:', error)

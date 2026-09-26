@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [{ warehouseId: 'asc' }, { displayNumber: 'asc' }],
+      orderBy: [{ warehouse: { code: 'asc' } }, { displayNumber: 'asc' }],
     })
 
     const tagsWithStatus = tags.map((tag) => ({

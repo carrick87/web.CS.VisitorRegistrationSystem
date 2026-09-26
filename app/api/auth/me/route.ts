@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { sortByCode } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -17,6 +18,7 @@ export async function GET() {
       include: {
         site: true,
         warehouses: {
+          orderBy: { warehouse: { code: 'asc' } },
           include: {
             warehouse: {
               include: {
@@ -43,13 +45,15 @@ export async function GET() {
       siteId: session.siteId,
       siteName: session.siteName,
       warehouseIds: session.warehouseIds,
-      warehouses: user.warehouses.map(uw => ({
-        id: uw.warehouse.id,
-        code: uw.warehouse.code,
-        name: uw.warehouse.name,
-        siteId: uw.warehouse.siteId,
-        siteName: uw.warehouse.site.name,
-      })),
+      warehouses: sortByCode(
+        user.warehouses.map((uw) => ({
+          id: uw.warehouse.id,
+          code: uw.warehouse.code,
+          name: uw.warehouse.name,
+          siteId: uw.warehouse.siteId,
+          siteName: uw.warehouse.site.name,
+        }))
+      ),
     })
   } catch (error) {
     console.error('Auth check error:', error)

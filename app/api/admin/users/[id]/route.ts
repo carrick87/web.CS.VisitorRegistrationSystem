@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSiteAdmin, isSuperAdmin, isSiteAdmin, getAccessibleWarehouseIds } from '@/lib/rbac'
 import { ROLES } from '@/lib/session'
+import { sortByCode } from '@/lib/utils'
 
 export async function GET(
   request: NextRequest,
@@ -18,6 +19,7 @@ export async function GET(
       include: {
         site: { select: { id: true, name: true } },
         warehouses: {
+          orderBy: { warehouse: { code: 'asc' } },
           include: {
             warehouse: {
               select: { id: true, code: true, name: true, siteId: true },
@@ -48,7 +50,7 @@ export async function GET(
         role: user.role,
         siteId: user.siteId,
         site: user.site,
-        warehouses: user.warehouses.map(uw => uw.warehouse),
+        warehouses: sortByCode(user.warehouses.map((uw) => uw.warehouse)),
         createdAt: user.createdAt,
       },
     })
@@ -128,6 +130,7 @@ export async function PUT(
       include: {
         site: { select: { id: true, name: true } },
         warehouses: {
+          orderBy: { warehouse: { code: 'asc' } },
           include: {
             warehouse: { select: { id: true, code: true, name: true } },
           },
@@ -143,7 +146,7 @@ export async function PUT(
         role: user.role,
         siteId: user.siteId,
         site: user.site,
-        warehouses: user.warehouses.map(uw => uw.warehouse),
+        warehouses: sortByCode(user.warehouses.map((uw) => uw.warehouse)),
       },
     })
   } catch (error) {

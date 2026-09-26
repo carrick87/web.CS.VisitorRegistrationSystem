@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { sortByCode } from '@/lib/utils'
 
 interface Warehouse {
   id: string
@@ -129,7 +130,7 @@ export default function DashboardPage() {
         return
       }
       setUser(data)
-      setWarehouses(data.warehouses || [])
+      setWarehouses(sortByCode(data.warehouses || []))
     } catch {
       router.push('/login')
     }
@@ -299,8 +300,12 @@ export default function DashboardPage() {
 
             {/* Mobile menu button */}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 text-gray-600"
+              className="sm:hidden inline-flex h-11 w-11 items-center justify-center text-gray-600"
+              aria-label="Menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="dashboard-mobile-menu"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -308,6 +313,7 @@ export default function DashboardPage() {
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -320,8 +326,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <div className="sm:hidden pb-4 space-y-2">
+          <div
+            id="dashboard-mobile-menu"
+            className={`sm:hidden pb-4 space-y-2 ${mobileMenuOpen ? '' : 'hidden'}`}
+          >
               <div className="text-sm text-gray-600 px-2 py-1">
                 {user?.name}
                 {user?.role && (
@@ -353,13 +361,13 @@ export default function DashboardPage() {
                 History
               </Link>
               <button
+                type="button"
                 onClick={handleLogout}
                 className="block w-full text-left px-2 py-2 text-red-600 hover:bg-red-50 rounded"
               >
                 Logout
               </button>
             </div>
-          )}
         </div>
       </nav>
 

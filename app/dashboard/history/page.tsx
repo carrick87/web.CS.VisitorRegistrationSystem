@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { sortByCode } from '@/lib/utils'
 
 interface Warehouse {
   id: string
@@ -81,7 +82,7 @@ export default function HistoryPage() {
         return
       }
       setUser(data)
-      setWarehouses(data.warehouses || [])
+      setWarehouses(sortByCode(data.warehouses || []))
     } catch {
       router.push('/login')
     }

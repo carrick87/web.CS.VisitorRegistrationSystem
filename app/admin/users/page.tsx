@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ROLE_LABELS } from '@/lib/utils'
+import { ROLE_LABELS, sortByCode } from '@/lib/utils'
 
 interface UserSession {
   name: string
@@ -91,7 +91,7 @@ export default function UsersPage() {
       ])
       setUsers(usersData.users || [])
       setSites(sitesData.sites || [])
-      setWarehouses(warehousesData.warehouses || [])
+      setWarehouses(sortByCode(warehousesData.warehouses || []))
 
       if (user.role === 'SITE_ADMIN' && user.siteId) {
         setForm(prev => ({ ...prev, siteId: user.siteId! }))

@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { VISITOR_TYPES, PURPOSES, VisitorType, VEHICLE_TYPES } from '@/lib/utils'
+import {
+  VISITOR_TYPES,
+  PURPOSES,
+  VisitorType,
+  VEHICLE_TYPES,
+  TRUCK_PLATE_REQUIRED_MESSAGE,
+} from '@/lib/utils'
 
 interface TagInfo {
   id: string
@@ -49,6 +55,7 @@ export default function TagCheckInPage() {
     vehicleType: 'NONE',
     carPlate: '',
   })
+  const [plateError, setPlateError] = useState('')
 
   useEffect(() => {
     validateTag()
@@ -76,10 +83,19 @@ export default function TagCheckInPage() {
     }
   }
 
+  const plateRequired =
+    !hasActiveGroup && formData.visitorType === 'EXTERNAL' && formData.vehicleType === 'TRUCK'
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+
+    if (plateRequired && !formData.carPlate.trim()) {
+      setPlateError(TRUCK_PLATE_REQUIRED_MESSAGE)
+      return
+    }
+    setPlateError('')
+    setLoading(true)
 
     try {
       const submitData = hasActiveGroup
@@ -91,7 +107,7 @@ export default function TagCheckInPage() {
             department: formData.department,
             purpose: formData.purpose,
             vehicleType: formData.vehicleType,
-            carPlate: formData.carPlate,
+            carPlate: formData.carPlate.trim(),
           }
 
       const response = await fetch(`/api/tag/${tagCode}/checkin`, {
@@ -126,6 +142,7 @@ export default function TagCheckInPage() {
       carPlate: type === 'STAFF' ? '' : prev.carPlate,
       vehicleType: type === 'STAFF' ? 'NONE' : prev.vehicleType,
     }))
+    if (type === 'STAFF') setPlateError('')
   }
 
   const purposes = PURPOSES[formData.visitorType]
@@ -337,9 +354,11 @@ export default function TagCheckInPage() {
                       <label className="label">Vehicle Type</label>
                       <select
                         value={formData.vehicleType}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, vehicleType: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          const vehicleType = e.target.value
+                          setFormData((prev) => ({ ...prev, vehicleType }))
+                          if (vehicleType !== 'TRUCK') setPlateError('')
+                        }}
                         className="select-field"
                       >
                         {VEHICLE_TYPES.map((vType) => (
@@ -352,19 +371,42 @@ export default function TagCheckInPage() {
 
                     {formData.vehicleType !== 'NONE' && (
                       <div>
-                        <label className="label">License Plate Number</label>
+                        <label htmlFor="license-plate" className="label">
+                          License Plate Number
+                          {plateRequired && (
+                            <span className="text-red-600" aria-hidden="true">
+                              {' '}
+                              *
+                            </span>
+                          )}
+                        </label>
                         <input
+                          id="license-plate"
                           type="text"
+                          required={plateRequired}
+                          aria-required={plateRequired}
+                          aria-invalid={plateError ? true : undefined}
+                          aria-describedby={plateError ? 'license-plate-error' : undefined}
                           value={formData.carPlate}
-                          onChange={(e) =>
+                          onInvalid={(event) => {
+                            event.preventDefault()
+                            setPlateError(TRUCK_PLATE_REQUIRED_MESSAGE)
+                          }}
+                          onChange={(e) => {
+                            setPlateError('')
                             setFormData((prev) => ({
                               ...prev,
                               carPlate: e.target.value.toUpperCase(),
                             }))
-                          }
+                          }}
                           className="input-field"
                           placeholder="e.g., ABC 1234"
                         />
+                        {plateError && (
+                          <p id="license-plate-error" className="text-sm text-red-600 mt-1" role="alert">
+                            {plateError}
+                          </p>
+                        )}
                       </div>
                     )}
                   </>
@@ -407,7 +449,7 @@ export default function TagCheckInPage() {
         </div>
 
         <div className="text-center mt-6 text-gray-500 text-sm">
-          <p>© 2024 Harrisons Warehouse. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Harrisons Warehouse. All rights reserved.</p>
         </div>
       </div>
     </main>
