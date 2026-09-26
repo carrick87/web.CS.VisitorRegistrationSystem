@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
+import { getManagedWarehouses } from '@/lib/rbac'
 
 export async function GET() {
   try {
@@ -14,18 +15,7 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      include: {
-        site: true,
-        warehouses: {
-          include: {
-            warehouse: {
-              include: {
-                site: true,
-              },
-            },
-          },
-        },
-      },
+      include: { site: true },
     })
 
     if (!user) {
@@ -33,6 +23,8 @@ export async function GET() {
         isLoggedIn: false,
       })
     }
+
+    const warehouses = await getManagedWarehouses(user)
 
     return NextResponse.json({
       isLoggedIn: session.isLoggedIn,
@@ -42,14 +34,8 @@ export async function GET() {
       role: session.role,
       siteId: session.siteId,
       siteName: session.siteName,
-      warehouseIds: session.warehouseIds,
-      warehouses: user.warehouses.map(uw => ({
-        id: uw.warehouse.id,
-        code: uw.warehouse.code,
-        name: uw.warehouse.name,
-        siteId: uw.warehouse.siteId,
-        siteName: uw.warehouse.site.name,
-      })),
+      warehouseIds: warehouses.map((warehouse) => warehouse.id),
+      warehouses,
     })
   } catch (error) {
     console.error('Auth check error:', error)

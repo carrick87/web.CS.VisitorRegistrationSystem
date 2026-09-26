@@ -3,9 +3,10 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   const setupSecret = process.env.SETUP_SECRET
-  const isVercelPreview = process.env.VERCEL_ENV === 'preview'
-  
-  if (!isVercelPreview && !setupSecret) {
+
+  // Preview deployments share the production database, so the setup secret
+  // is required in every environment, including Vercel preview.
+  if (!setupSecret) {
     return NextResponse.json(
       { error: 'SETUP_SECRET environment variable is not configured' },
       { status: 500 }
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest) {
   }
 
   const providedSecret = request.headers.get('x-setup-secret')
-  
-  if (!isVercelPreview && providedSecret !== setupSecret) {
+
+  if (providedSecret !== setupSecret) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }

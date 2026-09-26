@@ -117,6 +117,80 @@ export async function getAccessibleWarehouseIds(session: SessionData): Promise<s
   return []
 }
 
+export interface ManagedWarehouse {
+  id: string
+  code: string
+  name: string
+  siteId: string
+  siteName: string
+  isActive: boolean
+}
+
+/**
+ * Warehouses the user may manage or filter by.
+ * Super admins see every active warehouse, site admins see their site,
+ * and storekeepers see their assignments (read fresh from the database).
+ */
+export async function getManagedWarehouses(user: {
+  id: string
+  role: string
+  siteId?: string | null
+}): Promise<ManagedWarehouse[]> {
+  const includeSite = { site: { select: { name: true } } } as const
+
+  if (user.role === ROLES.SUPER_ADMIN) {
+    const warehouses = await prisma.warehouse.findMany({
+      where: { isActive: true },
+      include: includeSite,
+      orderBy: { code: 'asc' },
+    })
+    return warehouses.map((warehouse) => ({
+      id: warehouse.id,
+      code: warehouse.code,
+      name: warehouse.name,
+      siteId: warehouse.siteId,
+      siteName: warehouse.site.name,
+      isActive: warehouse.isActive,
+    }))
+  }
+
+  if (user.role === ROLES.SITE_ADMIN && user.siteId) {
+    const warehouses = await prisma.warehouse.findMany({
+      where: { siteId: user.siteId, isActive: true },
+      include: includeSite,
+      orderBy: { code: 'asc' },
+    })
+    return warehouses.map((warehouse) => ({
+      id: warehouse.id,
+      code: warehouse.code,
+      name: warehouse.name,
+      siteId: warehouse.siteId,
+      siteName: warehouse.site.name,
+      isActive: warehouse.isActive,
+    }))
+  }
+
+  if (user.role === ROLES.STOREKEEPER) {
+    const assignments = await prisma.userWarehouse.findMany({
+      where: { userId: user.id },
+      include: { warehouse: { include: includeSite } },
+    })
+    return assignments
+      .map((assignment) => assignment.warehouse)
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .map((warehouse) => ({
+        id: warehouse.id,
+        code: warehouse.code,
+        name: warehouse.name,
+        siteId: warehouse.siteId,
+        siteName: warehouse.site.name,
+        isActive: warehouse.isActive,
+      }))
+  }
+
+  return []
+}
+
 export async function getAccessibleSiteIds(session: SessionData): Promise<string[]> {
   if (isSuperAdmin(session)) {
     const sites = await prisma.site.findMany({ select: { id: true } })

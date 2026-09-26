@@ -57,7 +57,7 @@ export default function WarehouseCheckInPage() {
       <div className="container mx-auto px-4 max-w-lg">
         {warehouseInfo && (
           <div className="text-center mb-6">
-            <div className="inline-block bg-amber-600 text-white px-4 py-1 rounded-full text-sm font-semibold mb-2">
+            <div className="inline-block bg-amber-800 text-white px-4 py-1 rounded-full text-sm font-semibold mb-2">
               {warehouseInfo.siteName}
             </div>
             <h2 className="text-lg text-gray-600">{warehouseInfo.name}</h2>
