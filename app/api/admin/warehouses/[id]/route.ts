@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSuperAdmin, requireSiteAdmin, canAccessWarehouse } from '@/lib/rbac'
+import { requireSuperAdmin, requireSiteAdmin, isSuperAdmin } from '@/lib/rbac'
 
 export async function GET(
   request: NextRequest,
@@ -10,6 +10,16 @@ export async function GET(
     const authResult = await requireSiteAdmin()
     if (!authResult.authorized || !authResult.session) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    }
+
+    if (!isSuperAdmin(authResult.session)) {
+      const allowed = await prisma.warehouse.findFirst({
+        where: { id: params.id, siteId: authResult.session.siteId ?? '' },
+        select: { id: true },
+      })
+      if (!allowed) {
+        return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
+      }
     }
 
     const warehouse = await prisma.warehouse.findUnique({
@@ -65,11 +75,6 @@ export async function GET(
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
     }
 
-    const canAccess = await canAccessWarehouse(authResult.session, params.id)
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
     return NextResponse.json({ warehouse })
   } catch (error) {
     console.error('Get warehouse error:', error)
@@ -87,14 +92,19 @@ export async function PATCH(
       return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
+    if (!isSuperAdmin(authResult.session)) {
+      const allowed = await prisma.warehouse.findFirst({
+        where: { id: params.id, siteId: authResult.session.siteId ?? '' },
+        select: { id: true },
+      })
+      if (!allowed) {
+        return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
+      }
+    }
+
     const existing = await prisma.warehouse.findUnique({ where: { id: params.id } })
     if (!existing) {
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
-    }
-
-    const canAccess = await canAccessWarehouse(authResult.session, params.id)
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()

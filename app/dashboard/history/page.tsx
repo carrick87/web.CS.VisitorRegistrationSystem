@@ -9,6 +9,7 @@ interface Warehouse {
   id: string
   code: string
   name: string
+  isActive?: boolean
 }
 
 interface Tag {
@@ -85,7 +86,14 @@ export default function HistoryPage() {
         router.push('/login')
         return
       }
-      const allowed = sortByCode<Warehouse>(data.warehouses || [])
+      let allowed = sortByCode<Warehouse>(data.warehouses || [])
+      if (data.role === 'SUPER_ADMIN' || data.role === 'SITE_ADMIN') {
+        const warehousesResponse = await fetch('/api/admin/warehouses')
+        if (warehousesResponse.ok) {
+          const body = await warehousesResponse.json()
+          allowed = sortByCode<Warehouse>(body.warehouses || [])
+        }
+      }
       setWarehouses(allowed)
       const requested = new URLSearchParams(window.location.search).get('warehouse')
       const match = requested
@@ -225,7 +233,7 @@ export default function HistoryPage() {
               <option value="">All Warehouses</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.code} - {w.name}
+                  {w.code} - {w.name}{w.isActive === false ? ' (inactive)' : ''}
                 </option>
               ))}
             </select>

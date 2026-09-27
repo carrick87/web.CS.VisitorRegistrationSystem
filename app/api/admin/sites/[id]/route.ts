@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireSuperAdmin, requireSiteAdmin, canAccessSite } from '@/lib/rbac'
+import { requireSuperAdmin, requireSiteAdmin, isSuperAdmin } from '@/lib/rbac'
 import { ROLES } from '@/lib/session'
 
 const siteUserSelect = {
@@ -18,6 +18,10 @@ export async function GET(
     const authResult = await requireSiteAdmin()
     if (!authResult.authorized || !authResult.session) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    }
+
+    if (!isSuperAdmin(authResult.session) && authResult.session.siteId !== params.id) {
+      return NextResponse.json({ error: 'Site not found' }, { status: 404 })
     }
 
     const site = await prisma.site.findUnique({
@@ -54,11 +58,6 @@ export async function GET(
 
     if (!site) {
       return NextResponse.json({ error: 'Site not found' }, { status: 404 })
-    }
-
-    const canAccess = await canAccessSite(authResult.session, params.id)
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const storekeepers = await prisma.user.findMany({
@@ -109,9 +108,16 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireSuperAdmin()
-    if (!authResult.authorized) {
+    const authResult = await requireSiteAdmin()
+    if (!authResult.authorized || !authResult.session) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    }
+
+    if (!isSuperAdmin(authResult.session)) {
+      if (authResult.session.siteId !== params.id) {
+        return NextResponse.json({ error: 'Site not found' }, { status: 404 })
+      }
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const existing = await prisma.site.findUnique({ where: { id: params.id } })

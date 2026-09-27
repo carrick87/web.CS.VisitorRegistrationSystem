@@ -105,11 +105,6 @@ export default function TagManagementPage() {
   }, [])
 
   useEffect(() => {
-    const warehouseId = new URLSearchParams(window.location.search).get('warehouseId')
-    if (warehouseId) setSelectedWarehouse(warehouseId)
-  }, [])
-
-  useEffect(() => {
     if (user) {
       fetchTags()
     }
@@ -145,8 +140,13 @@ export default function TagManagementPage() {
         router.push('/dashboard')
         return
       }
+      const allowed = sortByCode<Warehouse>(data.warehouses || [])
       setUser(data)
-      setWarehouses(sortByCode(data.warehouses || []))
+      setWarehouses(allowed)
+      const warehouseId = new URLSearchParams(window.location.search).get('warehouseId')
+      if (warehouseId && allowed.some((warehouse) => warehouse.id === warehouseId)) {
+        setSelectedWarehouse(warehouseId)
+      }
     } catch {
       router.push('/login')
     }
@@ -237,13 +237,10 @@ export default function TagManagementPage() {
     if (params.get('print') !== '1') return
     const warehouseId = params.get('warehouseId')
     if (!warehouseId) return
-    const known =
-      warehouses.some((warehouse) => warehouse.id === warehouseId) ||
-      tags.some((tag) => tag.warehouse.id === warehouseId)
-    if (!known) return
+    if (!warehouses.some((warehouse) => warehouse.id === warehouseId)) return
     printRequestOpened.current = true
     openPrintModal(warehouseId)
-  }, [loading, tags, user, warehouses])
+  }, [loading, user, warehouses])
 
   const visibleTags = selectedWarehouse
     ? tags.filter((tag) => tag.warehouse.id === selectedWarehouse)
