@@ -12,11 +12,6 @@ export async function GET(
       return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
-    const canAccess = await canAccessWarehouse(authResult.session, params.id)
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
     const warehouse = await prisma.warehouse.findUnique({
       where: { id: params.id },
       include: {
@@ -33,8 +28,22 @@ export async function GET(
             },
           },
         },
+        visitors: {
+          orderBy: { timeIn: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            name: true,
+            visitorType: true,
+            company: true,
+            purpose: true,
+            status: true,
+            timeIn: true,
+            carPlate: true,
+          },
+        },
         _count: {
-          select: { visitors: true, users: true },
+          select: { visitors: true, users: true, tags: true },
         },
       },
     })
@@ -43,9 +52,72 @@ export async function GET(
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
     }
 
+    const canAccess = await canAccessWarehouse(authResult.session, params.id)
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     return NextResponse.json({ warehouse })
   } catch (error) {
     console.error('Get warehouse error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireSiteAdmin()
+    if (!authResult.authorized || !authResult.session) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
+    }
+
+    const existing = await prisma.warehouse.findUnique({ where: { id: params.id } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
+    }
+
+    const canAccess = await canAccessWarehouse(authResult.session, params.id)
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const data: { name?: string; isActive?: boolean } = {}
+
+    if (body.name !== undefined) {
+      if (typeof body.name !== 'string' || !body.name.trim()) {
+        return NextResponse.json({ error: 'Warehouse name is required' }, { status: 400 })
+      }
+      data.name = body.name.trim()
+    }
+
+    if (body.isActive !== undefined) {
+      if (typeof body.isActive !== 'boolean') {
+        return NextResponse.json({ error: 'Active status must be true or false' }, { status: 400 })
+      }
+      data.isActive = body.isActive
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+    }
+
+    const warehouse = await prisma.warehouse.update({
+      where: { id: params.id },
+      data,
+      include: {
+        site: {
+          select: { id: true, name: true, code: true },
+        },
+      },
+    })
+
+    return NextResponse.json({ warehouse })
+  } catch (error) {
+    console.error('Update warehouse error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

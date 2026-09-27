@@ -42,6 +42,11 @@ export function getTagCheckInUrl(tagCode: string, fallbackOrigin?: string): stri
   return `${getPublicSiteUrl(fallbackOrigin)}/tag/${encodeURIComponent(tagCode)}`
 }
 
+/** Warehouse gate URL. Uses the same public origin as printed tag labels. */
+export function getWarehouseCheckInUrl(warehouseCode: string, fallbackOrigin?: string): string {
+  return `${getPublicSiteUrl(fallbackOrigin)}/checkin/${encodeURIComponent(warehouseCode)}`
+}
+
 const ENUM_LABELS: Record<string, string> = {
   EXTERNAL: 'External',
   STAFF: 'Staff',

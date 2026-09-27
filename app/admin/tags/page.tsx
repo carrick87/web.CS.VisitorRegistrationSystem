@@ -104,6 +104,11 @@ export default function TagManagementPage() {
   }, [])
 
   useEffect(() => {
+    const warehouseId = new URLSearchParams(window.location.search).get('warehouseId')
+    if (warehouseId) setSelectedWarehouse(warehouseId)
+  }, [])
+
+  useEffect(() => {
     if (user) {
       fetchTags()
     }
