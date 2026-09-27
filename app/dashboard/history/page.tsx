@@ -49,6 +49,10 @@ interface UserSession {
 
 type StatusFilter = 'ALL' | 'COMPLETED' | 'STAFF_CHECKOUT'
 
+function historyPath(code: string): string {
+  return code ? `/dashboard/history?warehouse=${encodeURIComponent(code)}` : '/dashboard/history'
+}
+
 export default function HistoryPage() {
   const router = useRouter()
   const [visitors, setVisitors] = useState<Visitor[]>([])
@@ -81,8 +85,21 @@ export default function HistoryPage() {
         router.push('/login')
         return
       }
+      const allowed = sortByCode<Warehouse>(data.warehouses || [])
+      setWarehouses(allowed)
+      const requested = new URLSearchParams(window.location.search).get('warehouse')
+      const match = requested
+        ? allowed.find((warehouse) => warehouse.code === requested || warehouse.id === requested)
+        : undefined
+      if (match) {
+        setSelectedWarehouse(match.id)
+        if (requested !== match.code) {
+          router.replace(historyPath(match.code), { scroll: false })
+        }
+      } else if (requested) {
+        router.replace('/dashboard/history', { scroll: false })
+      }
       setUser(data)
-      setWarehouses(sortByCode(data.warehouses || []))
     } catch {
       router.push('/login')
     }
@@ -197,7 +214,12 @@ export default function HistoryPage() {
           {warehouses.length > 1 && (
             <select
               value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
+              onChange={(e) => {
+                const id = e.target.value
+                setSelectedWarehouse(id)
+                const code = warehouses.find((warehouse) => warehouse.id === id)?.code ?? ''
+                router.replace(historyPath(code), { scroll: false })
+              }}
               className="select-field w-full sm:w-64"
             >
               <option value="">All Warehouses</option>

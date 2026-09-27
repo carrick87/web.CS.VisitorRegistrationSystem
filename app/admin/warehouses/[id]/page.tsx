@@ -368,7 +368,7 @@ export default function WarehouseDetailPage() {
               Recent visitors ({warehouse.visitors.length})
             </h2>
             <Link
-              href="/dashboard/history"
+              href={`/dashboard/history?warehouse=${encodeURIComponent(warehouse.code)}`}
               className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
             >
               View all in History
