@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireStaff, getAccessibleWarehouseIds } from '@/lib/rbac'
+import { requireStaff, getAccessibleWarehouseIds, isSuperAdmin, isSiteAdmin, isStorekeeper } from '@/lib/rbac'
+import { SessionData } from '@/lib/session'
+
+/** History may filter by an inactive warehouse. Storekeeper assignments stay as they are. */
+async function canFilterHistoryWarehouse(session: SessionData, warehouseId: string): Promise<boolean> {
+  if (isSuperAdmin(session)) {
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: warehouseId },
+      select: { id: true },
+    })
+    return !!warehouse
+  }
+
+  if (isSiteAdmin(session) && session.siteId) {
+    const warehouse = await prisma.warehouse.findFirst({
+      where: { id: warehouseId, siteId: session.siteId },
+      select: { id: true },
+    })
+    return !!warehouse
+  }
+
+  if (isStorekeeper(session)) {
+    return session.warehouseIds?.includes(warehouseId) ?? false
+  }
+
+  return false
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +56,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (warehouseId) {
-      if (!accessibleWarehouseIds.includes(warehouseId)) {
+      const canFilter = await canFilterHistoryWarehouse(authResult.session, warehouseId)
+      if (!canFilter) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
       where.warehouseId = warehouseId

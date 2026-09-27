@@ -98,6 +98,7 @@ export default function TagManagementPage() {
     ready: new Set(),
   })
   const printRef = useRef<HTMLDivElement>(null)
+  const printRequestOpened = useRef(false)
 
   useEffect(() => {
     checkAuth()
@@ -139,8 +140,13 @@ export default function TagManagementPage() {
         router.push('/dashboard')
         return
       }
+      const allowed = sortByCode<Warehouse>(data.warehouses || [])
       setUser(data)
-      setWarehouses(sortByCode(data.warehouses || []))
+      setWarehouses(allowed)
+      const warehouseId = new URLSearchParams(window.location.search).get('warehouseId')
+      if (warehouseId && allowed.some((warehouse) => warehouse.id === warehouseId)) {
+        setSelectedWarehouse(warehouseId)
+      }
     } catch {
       router.push('/login')
     }
@@ -224,6 +230,17 @@ export default function TagManagementPage() {
     setMenuTagId(null)
     setShowPrintModal(true)
   }
+
+  useEffect(() => {
+    if (printRequestOpened.current || loading || !user) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('print') !== '1') return
+    const warehouseId = params.get('warehouseId')
+    if (!warehouseId) return
+    if (!warehouses.some((warehouse) => warehouse.id === warehouseId)) return
+    printRequestOpened.current = true
+    openPrintModal(warehouseId)
+  }, [loading, user, warehouses])
 
   const visibleTags = selectedWarehouse
     ? tags.filter((tag) => tag.warehouse.id === selectedWarehouse)
