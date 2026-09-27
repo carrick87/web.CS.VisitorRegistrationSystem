@@ -22,7 +22,9 @@ interface SiteWarehouse {
   code: string
   name: string
   isActive: boolean
-  _count: { visitors: number; users: number }
+  activeVisitorCount: number
+  tagCount: number
+  tagsInUse: number
 }
 
 interface SiteDetail {
@@ -51,6 +53,43 @@ function roleBadgeClass(role: string): string {
   return 'bg-gray-100 text-gray-600'
 }
 
+function Breadcrumb({
+  adminHref,
+  siteName,
+  siteHref,
+}: {
+  adminHref: string
+  siteName: string
+  siteHref: string
+}) {
+  return (
+    <nav aria-label="Breadcrumb">
+      <ol className="flex flex-wrap items-center gap-x-2">
+        <li>
+          <Link
+            href={adminHref}
+            className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
+          >
+            Admin
+          </Link>
+        </li>
+        <li aria-hidden="true" className="text-gray-400">
+          ›
+        </li>
+        <li>
+          <Link
+            href={siteHref}
+            aria-current="page"
+            className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
+          >
+            {siteName}
+          </Link>
+        </li>
+      </ol>
+    </nav>
+  )
+}
+
 export default function SiteDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -63,10 +102,10 @@ export default function SiteDetailPage() {
   const [forbidden, setForbidden] = useState(false)
   const [loadError, setLoadError] = useState('')
 
+  const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -114,14 +153,13 @@ export default function SiteDetailPage() {
     load()
   }, [router, siteId])
 
-  const backHref = user?.role === 'SUPER_ADMIN' ? '/admin' : '/admin/site'
+  const adminHref = user?.role === 'SUPER_ADMIN' ? '/admin' : '/admin/site'
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!site) return
     setSaving(true)
     setSaveError('')
-    setSaved(false)
     try {
       const response = await fetch(`/api/admin/sites/${site.id}`, {
         method: 'PATCH',
@@ -132,7 +170,7 @@ export default function SiteDetailPage() {
       if (!response.ok) throw new Error(data.error || 'Failed to update site')
       setSite((current) => (current ? { ...current, name: data.site.name } : current))
       setName(data.site.name)
-      setSaved(true)
+      setEditing(false)
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : 'Failed to update site')
     } finally {
@@ -162,10 +200,10 @@ export default function SiteDetailPage() {
             <h1 className="text-xl font-bold text-gray-800">{title}</h1>
             <p className="text-gray-500 mt-2">{message}</p>
             <Link
-              href={backHref}
+              href={adminHref}
               className="btn-primary inline-flex items-center justify-center min-h-[44px] mt-6"
             >
-              Back to admin
+              Admin
             </Link>
           </div>
         </main>
@@ -174,68 +212,40 @@ export default function SiteDetailPage() {
   }
 
   const warehouses = sortByCode(site.warehouses)
-  const canEdit = user?.role === 'SUPER_ADMIN'
+  const canEdit = user.role === 'SUPER_ADMIN'
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
+      <div className="bg-white shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-16 py-2">
-            <Link
-              href={backHref}
-              className="inline-flex items-center min-h-[44px] font-bold text-gray-800 hover:text-amber-800"
-            >
-              ← Admin
-            </Link>
-            <span className="text-sm text-gray-500">Welcome, {user?.name}</span>
-          </div>
+          <Breadcrumb adminHref={adminHref} siteName={site.name} siteHref={`/admin/sites/${site.id}`} />
         </div>
-      </nav>
+      </div>
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">{site.name}</h1>
-          {site.code ? (
-            <p className="mt-1 text-sm font-mono text-gray-500">{site.code}</p>
-          ) : (
-            <p className="mt-1 text-sm text-gray-400">No site code</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {site.code && (
+              <span className="font-mono text-sm bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1 rounded">
+                {site.code}
+              </span>
+            )}
+            <h1 className="text-2xl font-bold text-gray-800">{site.name}</h1>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setName(site.name)
+                setSaveError('')
+                setEditing(true)
+              }}
+              className="btn-primary min-h-[44px]"
+            >
+              Edit
+            </button>
           )}
         </div>
-
-        {canEdit && (
-          <form onSubmit={handleSave} className="card space-y-4">
-            <h2 className="text-lg font-semibold text-gray-800">Edit site</h2>
-            {saveError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {saveError}
-              </div>
-            )}
-            {saved && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                Site name saved
-              </div>
-            )}
-            <div>
-              <label htmlFor="site-name" className="label">
-                Site name
-              </label>
-              <input
-                id="site-name"
-                type="text"
-                required
-                value={name}
-                onChange={(event) => {
-                  setName(event.target.value)
-                  setSaved(false)
-                }}
-                className="input-field"
-              />
-            </div>
-            <button type="submit" className="btn-primary min-h-[44px] w-full sm:w-auto" disabled={saving}>
-              {saving ? 'Saving...' : 'Save name'}
-            </button>
-          </form>
-        )}
 
         <section>
           <h2 className="text-xl font-bold text-gray-800 mb-4">
@@ -244,28 +254,27 @@ export default function SiteDetailPage() {
           {warehouses.length === 0 ? (
             <div className="card text-center py-8 text-gray-500">No warehouses at this site</div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {warehouses.map((warehouse) => (
-                <div key={warehouse.id} className="card">
-                  <div className="flex justify-between items-start gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-gray-800">{warehouse.name}</h3>
-                        <StatusBadge active={warehouse.isActive} />
-                      </div>
-                      <p className="text-sm font-mono text-gray-500 mt-1">{warehouse.code}</p>
-                    </div>
-                    <Link
-                      href={`/admin/warehouses/${warehouse.id}`}
-                      className="inline-flex items-center min-h-[44px] px-2 text-amber-800 hover:text-amber-900 text-sm font-medium"
-                    >
-                      View →
-                    </Link>
+                <Link
+                  key={warehouse.id}
+                  href={`/admin/warehouses/${warehouse.id}`}
+                  className="card block hover:ring-2 hover:ring-amber-800/30 focus:outline-none focus:ring-2 focus:ring-amber-800"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-sm bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded">
+                      {warehouse.code}
+                    </span>
+                    <StatusBadge active={warehouse.isActive} />
                   </div>
-                  <p className="mt-3 text-sm text-gray-500">
-                    {warehouse._count.visitors} visitors
+                  <h3 className="font-semibold text-gray-800 mt-2">{warehouse.name}</h3>
+                  <p className="mt-3 text-sm text-gray-600">
+                    {warehouse.activeVisitorCount} checked in now
                   </p>
-                </div>
+                  <p className="text-sm text-gray-600">
+                    {warehouse.tagsInUse} of {warehouse.tagCount} tags in use
+                  </p>
+                </Link>
               ))}
             </div>
           )}
@@ -296,6 +305,66 @@ export default function SiteDetailPage() {
           )}
         </section>
       </main>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-site-title"
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+          >
+            <h2 id="edit-site-title" className="text-xl font-bold text-gray-800 mb-4">
+              Edit site
+            </h2>
+            {saveError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                {saveError}
+              </div>
+            )}
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label htmlFor="site-code" className="label">
+                  Site code
+                </label>
+                <input
+                  id="site-code"
+                  type="text"
+                  value={site.code || ''}
+                  readOnly
+                  className="input-field bg-gray-50 text-gray-600 font-mono"
+                />
+              </div>
+              <div>
+                <label htmlFor="site-name" className="label">
+                  Site name
+                </label>
+                <input
+                  id="site-name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="btn-secondary flex-1 min-h-[44px]"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary flex-1 min-h-[44px]" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

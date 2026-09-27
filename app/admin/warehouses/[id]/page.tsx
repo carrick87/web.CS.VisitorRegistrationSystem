@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import QRCode from 'qrcode'
-import { displayLabel, formatDateTime, getWarehouseCheckInUrl, ROLE_LABELS } from '@/lib/utils'
+import { displayLabel, formatDateTime, ROLE_LABELS, sortByCode } from '@/lib/utils'
 
 interface UserSession {
   name: string
@@ -29,6 +28,13 @@ interface RecentVisitor {
   carPlate: string | null
 }
 
+interface WarehouseTag {
+  id: string
+  code: string
+  displayNumber: string
+  visitors: { timeIn: string }[]
+}
+
 interface WarehouseDetail {
   id: string
   code: string
@@ -36,6 +42,7 @@ interface WarehouseDetail {
   isActive: boolean
   site: { id: string; name: string; code: string | null }
   users: { user: Storekeeper }[]
+  tags: WarehouseTag[]
   visitors: RecentVisitor[]
   _count: { visitors: number; users: number; tags: number }
 }
@@ -52,6 +59,23 @@ function StatusBadge({ active }: { active: boolean }) {
   )
 }
 
+function formatStay(startIso: string, now: number): string {
+  const elapsed = Math.max(0, now - new Date(startIso).getTime())
+  const totalMinutes = Math.floor(elapsed / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${hours}h ${minutes}m`
+}
+
+function tagUseLabel(tag: WarehouseTag, now: number): string {
+  const count = tag.visitors.length
+  if (count === 0) return 'Free'
+  const people = count === 1 ? '1 person' : `${count} people`
+  const started = tag.visitors[0]?.timeIn
+  const stay = started ? formatStay(started, now) : '0h 0m'
+  return `In use · ${people} · ${stay}`
+}
+
 export default function WarehouseDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -63,13 +87,19 @@ export default function WarehouseDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const [forbidden, setForbidden] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [now, setNow] = useState(() => Date.now())
 
+  const [editing, setEditing] = useState(false)
+  const [confirmOff, setConfirmOff] = useState(false)
   const [name, setName] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [saved, setSaved] = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState('')
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -118,38 +148,12 @@ export default function WarehouseDetailPage() {
     load()
   }, [router, warehouseId])
 
-  const gateUrl = warehouse ? getWarehouseCheckInUrl(warehouse.code) : ''
+  const adminHref = user?.role === 'SUPER_ADMIN' ? '/admin' : '/admin/site'
 
-  useEffect(() => {
-    if (!gateUrl) {
-      setQrDataUrl('')
-      return
-    }
-    let cancelled = false
-    QRCode.toDataURL(gateUrl, {
-      width: 480,
-      margin: 1,
-      errorCorrectionLevel: 'H',
-    })
-      .then((dataUrl) => {
-        if (!cancelled) setQrDataUrl(dataUrl)
-      })
-      .catch((error) => {
-        console.error('Failed to generate QR:', error)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [gateUrl])
-
-  const backHref = user?.role === 'SUPER_ADMIN' ? '/admin' : '/admin/site'
-
-  const handleSave = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const saveWarehouse = async () => {
     if (!warehouse) return
     setSaving(true)
     setSaveError('')
-    setSaved(false)
     try {
       const response = await fetch(`/api/admin/warehouses/${warehouse.id}`, {
         method: 'PATCH',
@@ -165,12 +169,24 @@ export default function WarehouseDetailPage() {
       )
       setName(data.warehouse.name)
       setIsActive(Boolean(data.warehouse.isActive))
-      setSaved(true)
+      setConfirmOff(false)
+      setEditing(false)
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : 'Failed to update warehouse')
+      setConfirmOff(false)
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSave = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!warehouse) return
+    if (warehouse.isActive && !isActive) {
+      setConfirmOff(true)
+      return
+    }
+    saveWarehouse()
   }
 
   if (loading || !user) {
@@ -199,10 +215,10 @@ export default function WarehouseDetailPage() {
             <h1 className="text-xl font-bold text-gray-800">{title}</h1>
             <p className="text-gray-500 mt-2">{message}</p>
             <Link
-              href={backHref}
+              href={adminHref}
               className="btn-primary inline-flex items-center justify-center min-h-[44px] mt-6"
             >
-              Back to admin
+              Admin
             </Link>
           </div>
         </main>
@@ -210,135 +226,115 @@ export default function WarehouseDetailPage() {
     )
   }
 
+  const tags = sortByCode(warehouse.tags)
+  const groupsOnSite = tags.filter((tag) => tag.visitors.length > 0).length
   const storekeepers = warehouse.users
     .map((assignment) => assignment.user)
     .filter((member) => member.role === 'STOREKEEPER')
     .sort((a, b) => a.name.localeCompare(b.name))
+  const warehouseCrumb = `${warehouse.code} – ${warehouse.name}`
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
+      <div className="bg-white shadow-sm">
         <div className="container mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-16 py-2">
-            <Link
-              href={backHref}
-              className="inline-flex items-center min-h-[44px] font-bold text-gray-800 hover:text-amber-800"
-            >
-              ← Admin
-            </Link>
-            <span className="text-sm text-gray-500">Welcome, {user?.name}</span>
-          </div>
+          <nav aria-label="Breadcrumb">
+            <ol className="flex flex-wrap items-center gap-x-2">
+              <li>
+                <Link
+                  href={adminHref}
+                  className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
+                >
+                  Admin
+                </Link>
+              </li>
+              <li aria-hidden="true" className="text-gray-400">
+                ›
+              </li>
+              <li>
+                <Link
+                  href={`/admin/sites/${warehouse.site.id}`}
+                  className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
+                >
+                  {warehouse.site.name}
+                </Link>
+              </li>
+              <li aria-hidden="true" className="text-gray-400">
+                ›
+              </li>
+              <li>
+                <Link
+                  href={`/admin/warehouses/${warehouse.id}`}
+                  aria-current="page"
+                  className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
+                >
+                  {warehouseCrumb}
+                </Link>
+              </li>
+            </ol>
+          </nav>
         </div>
-      </nav>
+      </div>
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
-        <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-sm bg-amber-50 border border-amber-200 text-amber-800 px-3 py-1 rounded">
+              {warehouse.code}
+            </span>
             <h1 className="text-2xl font-bold text-gray-800">{warehouse.name}</h1>
             <StatusBadge active={warehouse.isActive} />
           </div>
-          <p className="mt-1 text-sm font-mono text-gray-500">{warehouse.code}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setName(warehouse.name)
+              setIsActive(warehouse.isActive)
+              setSaveError('')
+              setConfirmOff(false)
+              setEditing(true)
+            }}
+            className="btn-primary min-h-[44px]"
+          >
+            Edit
+          </button>
         </div>
 
-        <form onSubmit={handleSave} className="card space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800">Edit warehouse</h2>
-          {saveError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {saveError}
-            </div>
-          )}
-          {saved && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-              Warehouse saved
-            </div>
-          )}
-          <div>
-            <label htmlFor="warehouse-code" className="label">
-              Warehouse code
-            </label>
-            <input
-              id="warehouse-code"
-              type="text"
-              value={warehouse.code}
-              readOnly
-              className="input-field bg-gray-50 text-gray-600 font-mono"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Codes are unique company-wide and cannot be changed.
-            </p>
-          </div>
-          <div>
-            <label htmlFor="warehouse-name" className="label">
-              Warehouse name
-            </label>
-            <input
-              id="warehouse-name"
-              type="text"
-              required
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-                setSaved(false)
-              }}
-              className="input-field"
-            />
-          </div>
-          <label className="flex items-center gap-3 min-h-[44px] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(event) => {
-                setIsActive(event.target.checked)
-                setSaved(false)
-              }}
-              className="h-5 w-5 rounded border-gray-300 text-amber-800 focus:ring-amber-500"
-            />
-            <span className="text-gray-800">{isActive ? 'Active' : 'Inactive'}</span>
-          </label>
-          <button type="submit" className="btn-primary min-h-[44px] w-full sm:w-auto" disabled={saving}>
-            {saving ? 'Saving...' : 'Save changes'}
-          </button>
-        </form>
-
-        <section className="card space-y-4">
-          <div>
-            <p className="text-sm text-gray-500">Site</p>
-            <Link
-              href={`/admin/sites/${warehouse.site.id}`}
-              className="inline-flex items-center min-h-[44px] text-amber-800 hover:text-amber-900 font-medium"
-            >
-              {warehouse.site.name}
-              {warehouse.site.code ? ` (${warehouse.site.code})` : ''}
-            </Link>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Status</p>
-            <div className="mt-1">
-              <StatusBadge active={warehouse.isActive} />
-            </div>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Check-in gate</p>
-            <a
-              href={gateUrl}
-              className="inline-flex items-center min-h-[44px] text-amber-800 hover:text-amber-900 break-all font-mono text-sm"
-            >
-              {gateUrl}
-            </a>
-          </div>
-          <div className="flex justify-center">
-            {qrDataUrl ? (
-              <img
-                src={qrDataUrl}
-                alt={`QR code for check-in gate ${warehouse.code}`}
-                className="w-48 h-48 bg-white"
-              />
+        <section>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-bold text-gray-800">Tags ({tags.length})</h2>
+            {tags.length === 0 ? (
+              <button type="button" className="btn-primary min-h-[44px] opacity-50" disabled>
+                Print labels
+              </button>
             ) : (
-              <div className="w-48 h-48 bg-gray-50 rounded-lg flex items-center justify-center text-sm text-gray-400">
-                Preparing QR code
-              </div>
+              <Link
+                href={`/admin/tags?warehouseId=${warehouse.id}&print=1`}
+                className="btn-primary inline-flex items-center justify-center min-h-[44px] text-center"
+              >
+                Print labels
+              </Link>
             )}
           </div>
+          {tags.length === 0 ? (
+            <div className="card text-center py-8 text-gray-500">No tags for this warehouse</div>
+          ) : (
+            <div className="space-y-3">
+              {tags.map((tag) => {
+                const inUse = tag.visitors.length > 0
+                return (
+                  <div key={tag.id} className="card py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-mono font-semibold text-gray-800">{tag.code}</p>
+                      <p className={`text-sm font-medium ${inUse ? 'text-green-700' : 'text-gray-500'}`}>
+                        {tagUseLabel(tag, now)}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </section>
 
         <section>
@@ -366,52 +362,212 @@ export default function WarehouseDetailPage() {
           )}
         </section>
 
-        <section className="card">
-          <h2 className="text-lg font-semibold text-gray-800">Tags</h2>
-          <Link
-            href={`/admin/tags?warehouseId=${warehouse.id}`}
-            className="inline-flex items-center min-h-[44px] text-amber-800 hover:text-amber-900 font-medium"
-          >
-            {warehouse._count.tags} {warehouse._count.tags === 1 ? 'tag' : 'tags'} →
-          </Link>
-        </section>
-
         <section>
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            Recent visitors ({warehouse.visitors.length})
-          </h2>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-bold text-gray-800">
+              Recent visitors ({warehouse.visitors.length})
+            </h2>
+            <Link
+              href="/dashboard/history"
+              className="inline-flex items-center min-h-[44px] font-medium text-amber-800 hover:text-amber-900"
+            >
+              View all in History
+            </Link>
+          </div>
           {warehouse.visitors.length === 0 ? (
             <div className="card text-center py-8 text-gray-500">No visitors yet</div>
           ) : (
-            <div className="space-y-3">
-              {warehouse.visitors.map((visitor) => (
-                <div key={visitor.id} className="card py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-gray-800">{visitor.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {displayLabel(visitor.visitorType)}
-                        {visitor.company ? ` · ${visitor.company}` : ''}
-                        {visitor.purpose ? ` · ${displayLabel(visitor.purpose)}` : ''}
-                      </p>
-                      {visitor.carPlate && (
-                        <p className="text-sm font-mono text-gray-500 mt-1">{visitor.carPlate}</p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-700">{displayLabel(visitor.status)}</p>
-                      <p className="text-sm text-gray-500">{formatDateTime(visitor.timeIn)}</p>
+            <>
+              <div className="space-y-3 md:hidden">
+                {warehouse.visitors.map((visitor) => (
+                  <div key={visitor.id} className="card py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-gray-800">{visitor.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {displayLabel(visitor.visitorType)}
+                          {visitor.company ? ` · ${visitor.company}` : ''}
+                          {visitor.purpose ? ` · ${displayLabel(visitor.purpose)}` : ''}
+                        </p>
+                        {visitor.carPlate && (
+                          <p className="text-sm font-mono text-gray-500 mt-1">{visitor.carPlate}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-700">{displayLabel(visitor.status)}</p>
+                        <p className="text-sm text-gray-500">{formatDateTime(visitor.timeIn)}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              <div className="hidden md:block card overflow-x-auto p-0">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Type
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Purpose
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Time in
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {warehouse.visitors.map((visitor) => (
+                      <tr key={visitor.id}>
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          {visitor.name}
+                          {visitor.company && (
+                            <span className="block text-sm font-normal text-gray-500">
+                              {visitor.company}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {displayLabel(visitor.visitorType)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {displayLabel(visitor.purpose)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {displayLabel(visitor.status)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          {formatDateTime(visitor.timeIn)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-          <p className="text-xs text-gray-400 mt-3">
-            {warehouse._count.visitors} visitors in total
-          </p>
         </section>
       </main>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-warehouse-title"
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+          >
+            <h2 id="edit-warehouse-title" className="text-xl font-bold text-gray-800 mb-4">
+              Edit warehouse
+            </h2>
+            {saveError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                {saveError}
+              </div>
+            )}
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label htmlFor="warehouse-code" className="label">
+                  Warehouse code
+                </label>
+                <input
+                  id="warehouse-code"
+                  type="text"
+                  value={warehouse.code}
+                  readOnly
+                  className="input-field bg-gray-50 text-gray-600 font-mono"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Codes are unique company-wide and cannot be changed.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="warehouse-name" className="label">
+                  Warehouse name
+                </label>
+                <input
+                  id="warehouse-name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <label className="flex items-center gap-3 min-h-[44px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(event) => setIsActive(event.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-amber-800 focus:ring-amber-500"
+                />
+                <span className="text-gray-800">{isActive ? 'Active' : 'Inactive'}</span>
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="btn-secondary flex-1 min-h-[44px]"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary flex-1 min-h-[44px]" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {confirmOff && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-off-title"
+            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+          >
+            <h2 id="confirm-off-title" className="text-xl font-bold text-gray-800 mb-3">
+              Turn this warehouse off?
+            </h2>
+            <p className="text-gray-600">Tags will stop accepting check-ins.</p>
+            {groupsOnSite > 0 && (
+              <p className="text-gray-800 mt-3">
+                {groupsOnSite === 1
+                  ? '1 group is still on site.'
+                  : `${groupsOnSite} groups are still on site.`}{' '}
+                Check {groupsOnSite === 1 ? 'that group' : 'them'} out first.
+              </p>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setConfirmOff(false)}
+                className="btn-secondary flex-1 min-h-[44px]"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveWarehouse}
+                className="btn-primary flex-1 min-h-[44px]"
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : 'Turn off'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -98,6 +98,7 @@ export default function TagManagementPage() {
     ready: new Set(),
   })
   const printRef = useRef<HTMLDivElement>(null)
+  const printRequestOpened = useRef(false)
 
   useEffect(() => {
     checkAuth()
@@ -229,6 +230,20 @@ export default function TagManagementPage() {
     setMenuTagId(null)
     setShowPrintModal(true)
   }
+
+  useEffect(() => {
+    if (printRequestOpened.current || loading || !user) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('print') !== '1') return
+    const warehouseId = params.get('warehouseId')
+    if (!warehouseId) return
+    const known =
+      warehouses.some((warehouse) => warehouse.id === warehouseId) ||
+      tags.some((tag) => tag.warehouse.id === warehouseId)
+    if (!known) return
+    printRequestOpened.current = true
+    openPrintModal(warehouseId)
+  }, [loading, tags, user, warehouses])
 
   const visibleTags = selectedWarehouse
     ? tags.filter((tag) => tag.warehouse.id === selectedWarehouse)

@@ -28,6 +28,19 @@ export async function GET(
             },
           },
         },
+        tags: {
+          orderBy: { code: 'asc' },
+          select: {
+            id: true,
+            code: true,
+            displayNumber: true,
+            visitors: {
+              where: { status: 'ACTIVE' },
+              orderBy: { timeIn: 'asc' },
+              select: { timeIn: true },
+            },
+          },
+        },
         visitors: {
           orderBy: { timeIn: 'desc' },
           take: 10,

@@ -26,7 +26,14 @@ export async function GET(
         warehouses: {
           include: {
             _count: {
-              select: { visitors: true, users: true },
+              select: {
+                visitors: { where: { status: 'ACTIVE' } },
+                tags: true,
+              },
+            },
+            tags: {
+              where: { visitors: { some: { status: 'ACTIVE' } } },
+              select: { id: true },
             },
           },
           orderBy: { code: 'asc' },
@@ -76,7 +83,21 @@ export async function GET(
       return a.name.localeCompare(b.name)
     })
 
-    return NextResponse.json({ site: { ...site, users } })
+    return NextResponse.json({
+      site: {
+        ...site,
+        users,
+        warehouses: site.warehouses.map((warehouse) => ({
+          id: warehouse.id,
+          code: warehouse.code,
+          name: warehouse.name,
+          isActive: warehouse.isActive,
+          activeVisitorCount: warehouse._count.visitors,
+          tagCount: warehouse._count.tags,
+          tagsInUse: warehouse.tags.length,
+        })),
+      },
+    })
   } catch (error) {
     console.error('Get site error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
